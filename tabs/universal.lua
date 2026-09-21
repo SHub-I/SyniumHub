@@ -13,6 +13,15 @@ return function(Window, rank, Exclusions)
         return ok and res or nil, res
     end
 
+    local function safeStr(v)
+        if type(v) == "string" then return v end
+        if type(v) == "table" then
+            local ok, json = pcall(function() return HttpService:JSONEncode(v) end)
+            if ok and type(json) == "string" then return json end
+        end
+        return tostring(v)
+    end
+
     local function listScriptsForTab(name)
         local ok, apiRes = httpGet(apiTree)
         if not ok or not apiRes then return {} end
@@ -46,7 +55,7 @@ return function(Window, rank, Exclusions)
     local function compileAndWrap(content, path)
         local ok, fn = pcall(function() return loadstring(content) end)
         if not ok or type(fn) ~= "function" then
-            return nil, ("compile failed for %s -> %s"):format(path, tostring(fn))
+            return nil, ("compile failed for %s -> %s"):format(path, safeStr(fn))
         end
 
         local registeredName, registeredCallback
@@ -74,7 +83,7 @@ return function(Window, rank, Exclusions)
 
         local ok2, ret = pcall(function() return fn() end)
         if not ok2 then
-            return nil, ("execute failed for %s -> %s"):format(path, tostring(ret))
+            return nil, ("execute failed for %s -> %s"):format(path, safeStr(ret))
         end
 
         if registeredCallback and type(registeredCallback) == "function" then
@@ -106,20 +115,25 @@ return function(Window, rank, Exclusions)
     for _, path in ipairs(scripts) do
         local content = fetchRaw(path)
         if not content then
-            Tab:CreateLabel({ Text = ("Missing: %s"):format(path) })
+            Tab:CreateLabel({ Text = safeStr(("Missing: %s"):format(path)) })
         else
             local mod, err = compileAndWrap(content, path)
             if not mod then
-                Tab:CreateLabel({ Text = ("Error loading %s"):format(path) })
-                warn("Script load error:", err)
+                Tab:CreateLabel({ Text = safeStr(("Error loading %s"):format(path)) })
+                warn("Script load error:", safeStr(err))
             else
-                Tab:CreateButton({
-                    Name = mod.Name,
-                    Callback = function()
-                        local ok, err = pcall(mod.Run)
-                        if not ok then warn(("Script %s runtime error: %s"):format(mod.Name, tostring(err))) end
-                    end
-                })
+                if type(mod.Run) ~= "function" then
+                    Tab:CreateLabel({ Text = safeStr(("Invalid script (no runnable) %s"):format(mod.Name)) })
+                    warn("Script has no runnable function:", safeStr(mod))
+                else
+                    Tab:CreateButton({
+                        Name = mod.Name,
+                        Callback = function()
+                            local ok, runErr = pcall(mod.Run)
+                            if not ok then warn(("Script %s runtime error: %s"):format(mod.Name, safeStr(runErr))) end
+                        end
+                    })
+                end
             end
         end
     end
