@@ -1,23 +1,20 @@
---// Synium Hub Rank Exclusions
-
 local HttpService = game:GetService("HttpService")
 
-local rank = shared.SyniumRank
-local url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/config/ranks.json"
+local ranks = HttpService:JSONDecode(
+    game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/config/ranks.json")
+)
 
-local function fetch()
-    local raw = game:HttpGet(url)
-    return HttpService:JSONDecode(raw)
+local Exclusions = {}
+
+function Exclusions:IsExcluded(rank, scriptPath)
+    local list = ranks[rank]
+    if not list then return false end
+
+    if table.find(list, "__ALL__") then
+        return true
+    end
+
+    return table.find(list, scriptPath) ~= nil
 end
 
-local data = fetch()
-
--- Invalid rank → exclude everything
-if not data[rank] then
-    shared.SyniumExclusions = { "__ALL__" }
-    return shared.SyniumExclusions
-end
-
--- Valid rank → return its exclusion list
-shared.SyniumExclusions = data[rank]
-return shared.SyniumExclusions
+return Exclusions
