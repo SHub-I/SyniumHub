@@ -1,5 +1,1 @@
---// Synium Hub - Universal Script 1
-
-return function()
-    print("Universal Script 1 Loaded")
-end
+loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
