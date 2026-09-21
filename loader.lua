@@ -1,5 +1,5 @@
 --// Synium Hub Loader
-local base = "https://raw.githubusercontent.com/yourname/synium-hub/main/"
+local base = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/"
 
 local function load(path)
     return loadstring(game:HttpGet(base .. path))()
