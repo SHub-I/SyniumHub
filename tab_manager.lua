@@ -2,7 +2,6 @@
 -- Defensive loader: safe remote loads, capture created Tab, auto-populate scripts if tab empty
 
 local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
 
 local owner = "SHub-I"
 local repo = "SyniumHub"
@@ -38,14 +37,12 @@ local function fetchRaw(url)
     return true, res
 end
 
--- safe remote loader that returns the module (or nil + error)
 local function safeLoadRemoteRaw(url)
     local ok, contentOrErr = fetchRaw(url .. "?ts=" .. tostring(os.time()))
     if not ok then return false, contentOrErr end
     return safeLoadString(contentOrErr, url)
 end
 
--- safe loader that returns module or nil
 local function safeLoadRemoteModule(path)
     local url = base .. path
     local ok, modOrErr = safeLoadRemoteRaw(url)
@@ -76,7 +73,6 @@ local tabs = {
     "mm2"
 }
 
--- Helper: list script files under scripts/<tab>/ using GitHub API tree
 local function listScriptsForTab(tabName)
     local ok, apiRes = safeHttpGet(apiTree)
     if not ok or not apiRes then return {} end
@@ -86,7 +82,6 @@ local function listScriptsForTab(tabName)
     local prefix = ("scripts/%s/"):format(tabName)
     for _, entry in ipairs(decoded.tree) do
         if entry.type == "blob" and entry.path:sub(1, #prefix) == prefix then
-            -- only include .lua files
             if entry.path:match("%.lua$") then
                 table.insert(out, entry.path)
             end
@@ -96,22 +91,19 @@ local function listScriptsForTab(tabName)
     return out
 end
 
--- Helper: create a simple section + buttons for scripts on the captured Tab
 local function populateTabWithScripts(Tab, tabName)
     if not Tab or type(Tab.CreateSection) ~= "function" then return end
     local scripts = listScriptsForTab(tabName)
     if #scripts == 0 then return end
 
-    local section = Tab:CreateSection((tabName:gsub("^%l", string.upper) .. " Scripts"))
+    Tab:CreateSection((tabName:gsub("^%l", string.upper) .. " Scripts"))
     for _, path in ipairs(scripts) do
         local fileName = path:match("([^/]+)$")
         local displayName = fileName:gsub("%.lua$", ""):gsub("_", " "):gsub("^%l", string.upper)
-        -- Create a button that loads the script when clicked
         pcall(function()
             Tab:CreateButton({
                 Name = displayName,
                 Callback = function()
-                    -- guarded load & execute
                     local ok, contentOrErr = fetchRaw(base .. path)
                     if not ok then
                         warn("Failed to fetch script:", contentOrErr)
@@ -127,7 +119,6 @@ local function populateTabWithScripts(Tab, tabName)
                         warn("Script execution error:", retOrErr)
                         return
                     end
-                    -- If the script returns a function, call it
                     if type(retOrErr) == "function" then
                         local ok4, err = pcall(function() retOrErr() end)
                         if not ok4 then warn("Script callback error:", err) end
@@ -138,15 +129,12 @@ local function populateTabWithScripts(Tab, tabName)
     end
 end
 
--- Utility: count visible children on a Tab (best-effort)
 local function tabHasChildren(Tab)
     if not Tab then return false end
-    -- Try common Rayfield patterns: Tab:GetChildren or Tab._sections
     if type(Tab.GetChildren) == "function" then
         local ok, children = pcall(function() return Tab:GetChildren() end)
         if ok and type(children) == "table" and #children > 0 then return true end
     end
-    -- Fallback: try to inspect known fields
     if Tab._sections and type(Tab._sections) == "table" and #Tab._sections > 0 then return true end
     return false
 end
@@ -157,7 +145,6 @@ function Manager:Load(Window)
         return
     end
 
-    -- Determine rank safely
     local rank = "None"
     if type(Rank) == "table" and type(Rank.GetRank) == "function" then
         local ok, r = pcall(function() return Rank:GetRank() end)
@@ -168,7 +155,6 @@ function Manager:Load(Window)
         local path = "tabs/" .. name .. ".lua"
         local url = base .. path
 
-        -- Capture the Tab created by the module by temporarily wrapping Window.CreateTab
         local originalCreateTab = Window.CreateTab
         local capturedTab = nil
         if type(originalCreateTab) == "function" then
@@ -179,11 +165,9 @@ function Manager:Load(Window)
             end
         end
 
-        -- Load the tab module safely
         local ok, contentOrErr = fetchRaw(url)
         if not ok then
             warn(("tab_manager: failed to fetch %s -> %s"):format(path, contentOrErr))
-            -- restore CreateTab
             if originalCreateTab then Window.CreateTab = originalCreateTab end
             goto continue
         end
@@ -196,7 +180,6 @@ function Manager:Load(Window)
         end
 
         local mod = modOrErr
-        -- Call module in a protected manner
         local calledOk, calledErr = pcall(function()
             if type(mod) == "function" then
                 mod(Window, rank, Exclusions)
@@ -205,8 +188,6 @@ function Manager:Load(Window)
                     mod:Load(Window, rank, Exclusions)
                 elseif type(mod.Init) == "function" then
                     mod.Init(Window, rank, Exclusions)
-                else
-                    -- Some tab modules return a table of scripts; try to handle that below
                 end
             else
                 warn(("tab_manager: tab %s returned unsupported type: %s"):format(name, type(mod)))
@@ -216,12 +197,9 @@ function Manager:Load(Window)
             warn(("tab_manager: tab %s errored during execution -> %s"):format(name, tostring(calledErr)))
         end
 
-        -- Restore CreateTab
         if originalCreateTab then Window.CreateTab = originalCreateTab end
 
-        -- If the captured Tab exists but has no children, attempt to auto-populate scripts
         if capturedTab and not tabHasChildren(capturedTab) then
-            -- Attempt to populate scripts for this tab
             pcall(function() populateTabWithScripts(capturedTab, name) end)
         end
 
