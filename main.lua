@@ -1,19 +1,26 @@
--- Synium Hub Main
+-- Synium Hub - Tab Manager
 
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
+local Rank = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/rank.lua"))()
+local Exclusions = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/rank_exclusions.lua"))()
 
-local Window = OrionLib:MakeWindow({
-    Name = "Synium Hub",
-    HidePremium = false,
-    SaveConfig = false,
-    IntroEnabled = false,
-    Icon = "rbxassetid://4483345998"
-})
+local Manager = {}
 
-shared.SyniumWindow = Window
+local tabs = {
+    "universal",
+    "ftap",
+    "brookhaven",
+    "mm2"
+}
 
-local TabManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tab_manager.lua"))()
+function Manager:Load(Window)
+    local rank = Rank:GetRank()
 
-TabManager:Load(Window)
+    for _, name in ipairs(tabs) do
+        local tabUrl = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/" .. name .. ".lua"
+        local fn = loadstring(game:HttpGet(tabUrl))
 
-OrionLib:Init()
+        fn(Window, rank, Exclusions)
+    end
+end
+
+return Manager
