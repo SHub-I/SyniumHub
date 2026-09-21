@@ -4,20 +4,16 @@ return function(Window)
     local Tab = Window:CreateTab("FTAP")
 
     Tab:AddButton({
-        Name = "Auto Tap",
+        Name = "FTAP Script 1",
         Callback = function()
-            getgenv().tap = true
-            while tap do
-                task.wait()
-                game:GetService("ReplicatedStorage").Events.Tap:FireServer()
-            end
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/scripts/ftap/script1.lua"))()
         end
     })
 
     Tab:AddButton({
-        Name = "Stop Auto Tap",
+        Name = "FTAP Script 2",
         Callback = function()
-            getgenv().tap = false
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/scripts/ftap/script2.lua"))()
         end
     })
 end
