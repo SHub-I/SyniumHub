@@ -1,14 +1,24 @@
---// Synium Hub Tab Manager
+local Rank = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/rank.lua"))()
+local Exclusions = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/rank_exclusions.lua"))()
 
-local TabManager = {}
+local Manager = {}
 
-function TabManager:Load(Window)
-    -- Load each tab file
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/universal.lua"))()(Window)
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/ftap.lua"))()(Window)
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/brookhaven.lua"))()(Window)
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/mm2.lua"))()(Window)
+local tabs = {
+    "universal",
+    "ftap",
+    "brookhaven",
+    "mm2"
+}
+
+function Manager:Load(Window)
+    local rank = Rank:GetRank()
+
+    for _, name in ipairs(tabs) do
+        local tabUrl = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/" .. name .. ".lua"
+        local fn = loadstring(game:HttpGet(tabUrl))
+
+        fn(Window, rank, Exclusions)
+    end
 end
 
-shared.SyniumTabManager = TabManager
-return TabManager
+return Manager
