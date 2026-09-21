@@ -19,18 +19,11 @@ function Manager:Load(Window)
         return
     end
 
-    -- Call each tab manually, no table, no iteration
+    -- NO TABLE. NO LOOP. NO WEIRDNESS.
     pcall(function() auto(Window, "None", {}, "universal") end)
     pcall(function() auto(Window, "None", {}, "ftap") end)
     pcall(function() auto(Window, "None", {}, "brookhaven") end)
     pcall(function() auto(Window, "None", {}, "mm2") end)
-
-    -- Add your empty tab
-    pcall(function()
-        local Tab = Window:CreateTab("Empty", 4483345998)
-        Tab:CreateSection("Nothing Here")
-        Tab:CreateLabel({ Text = "This tab intentionally has no scripts." })
-    end)
 end
 
 return Manager
