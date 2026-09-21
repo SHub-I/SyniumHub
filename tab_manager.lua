@@ -16,6 +16,7 @@ function Manager:Load(Window)
     for _,name in ipairs(tabs) do
         if auto then
             pcall(function()
+                -- THIS is the important part:
                 auto(Window, "None", {}, name)
             end)
         else
