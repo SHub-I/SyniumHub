@@ -1,6 +1,6 @@
 -- tab_manager.lua
 -- Robust manager that loads a single reusable tabs/auto_tab.lua module and invokes it for each tab.
--- Falls back to minimal UI if remote fetch/compile fails.
+-- Provides a proxy Tab that sanitizes UI inputs to avoid "string expected, got table" errors.
 
 local HttpService = game:GetService("HttpService")
 
@@ -91,11 +91,9 @@ do
     if not mod then
         warn("tab_manager: failed to load tabs/auto_tab.lua ->", safeStr(err))
     else
-        -- Expect the module to return a function (the tab factory)
         if type(mod) == "function" then
             autoTabFn = mod
         elseif type(mod) == "table" and type(mod.Load) == "function" then
-            -- support modules that return a table with a callable entry
             autoTabFn = function(Window, rank, Exclusions, tabName) return mod:Load(Window, rank, Exclusions, tabName) end
         else
             warn("tab_manager: tabs/auto_tab.lua returned unsupported type:", type(mod))
@@ -113,6 +111,110 @@ local function createEmptyTab(Window, name)
     end
 end
 
+-- Create a proxy wrapper around a real Rayfield Tab to sanitize inputs
+local function makeSafeTabProxy(realTab)
+    if not realTab then return nil end
+
+    local proxy = {}
+    -- forward everything by default
+    setmetatable(proxy, {
+        __index = function(_, key)
+            return realTab[key]
+        end,
+        __newindex = function(_, k, v)
+            realTab[k] = v
+        end
+    })
+
+    -- sanitize CreateLabel
+    proxy.CreateLabel = function(params)
+        -- Accept either string or table { Text = "..." }
+        if type(params) == "string" then
+            pcall(function() realTab:CreateLabel({ Text = params }) end)
+            return
+        end
+        if type(params) ~= "table" then
+            -- convert to string
+            local s = safeStr(params)
+            pcall(function() realTab:CreateLabel({ Text = s }) end)
+            warn("tab_manager: sanitized CreateLabel param (non-table) ->", s)
+            return
+        end
+        local text = params.Text
+        if type(text) ~= "string" then
+            local s = safeStr(text)
+            local safeParams = {}
+            for k,v in pairs(params) do
+                if k ~= "Text" then safeParams[k] = v end
+            end
+            safeParams.Text = s
+            pcall(function() realTab:CreateLabel(safeParams) end)
+            warn(("tab_manager: sanitized CreateLabel.Text for label; original type=%s; value=%s"):format(type(text), safeStr(text)))
+            return
+        end
+        pcall(function() realTab:CreateLabel(params) end)
+    end
+
+    -- sanitize CreateSection (section name should be string)
+    proxy.CreateSection = function(name)
+        if type(name) ~= "string" then
+            local s = safeStr(name)
+            pcall(function() realTab:CreateSection(s) end)
+            warn("tab_manager: sanitized CreateSection name ->", s)
+            return
+        end
+        pcall(function() realTab:CreateSection(name) end)
+    end
+
+    -- sanitize CreateButton
+    proxy.CreateButton = function(params)
+        if type(params) ~= "table" then
+            -- if user passed a string, treat as Name and create a no-op callback
+            if type(params) == "string" then
+                local name = params
+                pcall(function() realTab:CreateButton({ Name = name, Callback = function() end }) end)
+                return
+            end
+            local s = safeStr(params)
+            pcall(function() realTab:CreateButton({ Name = s, Callback = function() end }) end)
+            warn("tab_manager: sanitized CreateButton param (non-table) ->", s)
+            return
+        end
+
+        local name = params.Name
+        if type(name) ~= "string" then
+            local s = safeStr(name)
+            local safeParams = {}
+            for k,v in pairs(params) do
+                if k ~= "Name" then safeParams[k] = v end
+            end
+            safeParams.Name = s
+            -- ensure Callback is a function
+            if type(safeParams.Callback) ~= "function" then
+                safeParams.Callback = function() end
+                warn(("tab_manager: CreateButton for %s had non-function Callback; replaced with noop"):format(s))
+            end
+            pcall(function() realTab:CreateButton(safeParams) end)
+            warn(("tab_manager: sanitized CreateButton.Name; original type=%s; value=%s"):format(type(name), safeStr(name)))
+            return
+        end
+
+        -- ensure Callback is a function
+        if type(params.Callback) ~= "function" then
+            local safeParams = {}
+            for k,v in pairs(params) do safeParams[k] = v end
+            safeParams.Callback = function() end
+            pcall(function() realTab:CreateButton(safeParams) end)
+            warn(("tab_manager: CreateButton '%s' had non-function Callback; replaced with noop"):format(name))
+            return
+        end
+
+        pcall(function() realTab:CreateButton(params) end)
+    end
+
+    return proxy
+end
+
 function Manager:Load(Window)
     if not Window then
         warn("tab_manager: Load called without Window")
@@ -126,18 +228,37 @@ function Manager:Load(Window)
         if ok and r then rank = r end
     end
 
-    for _, name in ipairs(tabs) do
-        if type(autoTabFn) == "function" then
+    -- Wrap Window.CreateTab so modules that call it get a safe proxy
+    local originalCreateTab = Window.CreateTab
+    local function createSafeTab(...)
+        local ok, realTab = pcall(function() return originalCreateTab(...) end)
+        if not ok or not realTab then
+            return realTab
+        end
+        return makeSafeTabProxy(realTab)
+    end
+
+    -- If autoTabFn is available, use it for all tabs
+    if type(autoTabFn) == "function" then
+        for _, name in ipairs(tabs) do
             local ok, err = pcall(function()
+                -- temporarily replace CreateTab on Window
+                Window.CreateTab = createSafeTab
                 -- call shared module with tab name
                 autoTabFn(Window, rank, Exclusions, name)
+                -- restore
+                Window.CreateTab = originalCreateTab
             end)
             if not ok then
                 warn(("tab_manager: auto_tab for %s errored -> %s"):format(name, safeStr(err)))
+                -- restore CreateTab in case of error
+                Window.CreateTab = originalCreateTab
                 createEmptyTab(Window, name)
             end
-        else
-            -- fallback: try to load per-tab file (legacy support)
+        end
+    else
+        -- fallback: try to load per-tab file (legacy support)
+        for _, name in ipairs(tabs) do
             local path = "tabs/" .. name .. ".lua"
             local mod, err = safeLoadRemoteModule(path)
             if not mod then
@@ -145,6 +266,7 @@ function Manager:Load(Window)
                 createEmptyTab(Window, name)
             else
                 local ok, callErr = pcall(function()
+                    Window.CreateTab = createSafeTab
                     if type(mod) == "function" then
                         mod(Window, rank, Exclusions)
                     elseif type(mod) == "table" then
@@ -160,14 +282,19 @@ function Manager:Load(Window)
                         warn(("tab_manager: module %s returned unsupported type: %s"):format(path, type(mod)))
                         createEmptyTab(Window, name)
                     end
+                    Window.CreateTab = originalCreateTab
                 end)
                 if not ok then
                     warn(("tab_manager: tab %s errored during execution -> %s"):format(name, safeStr(callErr)))
+                    Window.CreateTab = originalCreateTab
                     createEmptyTab(Window, name)
                 end
             end
         end
     end
+
+    -- restore CreateTab to original just in case
+    Window.CreateTab = originalCreateTab
 end
 
 return Manager
