@@ -67,7 +67,7 @@ local tabs = { "universal", "ftap", "brookhaven", "mm2" }
 -- Minimal hardcoded fallback script lists (used only if remote tab module fails)
 local fallbackScripts = {
     universal = {
-        { path = "scripts/universal/script1.lua", name = "Universal Script 1" },
+        { path = "scripts/universal/script1.lua", name = "Infinite Yield" },
         { path = "scripts/universal/script2.lua", name = "Universal Script 2" },
     },
     ftap = {
