@@ -100,7 +100,6 @@ return function(Window, rank, Exclusions, tabName)
         return nil, ("no registration or return value from %s"):format(path)
     end
 
-    tabName = tostring(tabName or "universal")
     local Tab = Window:CreateTab((tabName:gsub("^%l", string.upper)), 4483345998)
     Tab:CreateSection((tabName:gsub("^%l", string.upper) .. " Scripts"))
 
