@@ -12,7 +12,7 @@ local function fetchRaw(url)
     if not ok or not res or #res == 0 then
         error("HttpGet failed for "..tostring(url).." -> "..tostring(res))
     end
-    if res:match("^%s*<!DOCTYPE") or res:match("edge_all_open_tabs") or res:match("# User's Edge browser tabs metadata") then
+    if res:match("^%s*<!DOCTYPE") then
         error("Remote returned unexpected content for "..tostring(url))
     end
     return res
@@ -58,7 +58,6 @@ else
             warn("TabManager:Load failed:", err)
         end
     elseif type(TabManager) == "function" then
-        -- Some modules return a function; call it with Window if appropriate
         local success, err = pcall(function() TabManager(Window) end)
         if not success then
             warn("TabManager call failed:", err)
@@ -89,5 +88,4 @@ if Window and type(Window.SetGlobal) == "function" then
     end)
 end
 
--- Final note: keep main.lua minimal and let tab_manager/tabs handle script registration.
--- Any further remote loads should use safeLoadRemote to ensure clear errors and avoid silent failures.
+-- Keep main.lua minimal; further remote loads should use safeLoadRemote.
