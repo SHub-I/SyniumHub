@@ -5,12 +5,8 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Synium Hub",
     LoadingSubtitle = "by Syn",
     ConfigurationSaving = false,
-    Discord = {
-        Enabled = false
-    }
+    Discord = { Enabled = false }
 })
-
-shared.SyniumWindow = Window
 
 local TabManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tab_manager.lua"))()
 
