@@ -1,14 +1,8 @@
 return function(Window, rank, Exclusions)
 
-    local Tab = Window:MakeTab({
-        Name = "FTAP",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
+    local Tab = Window:CreateTab("FTAP", 4483345998)
 
-    local Section = Tab:AddSection({
-        Name = "FTAP Scripts"
-    })
+    Tab:CreateSection("FTAP Scripts")
 
     local scripts = {
         {file = "script1.lua", name = "FTAP Script 1"},
@@ -19,7 +13,7 @@ return function(Window, rank, Exclusions)
         local path = "ftap/" .. s.file
 
         if not Exclusions:IsExcluded(rank, path) then
-            Tab:AddButton({
+            Tab:CreateButton({
                 Name = s.name,
                 Callback = function()
                     loadstring(game:HttpGet(
