@@ -1,32 +1,24 @@
-return function(Window, rank, Exclusions)
+local Rank = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/rank.lua"))()
+local Exclusions = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/rank_exclusions.lua"))()
 
-    local Tab = Window:MakeTab({
-        Name = "Universal",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
+local Manager = {}
 
-    local Section = Tab:AddSection({
-        Name = "Universal Scripts"
-    })
+local tabs = {
+    "universal",
+    "ftap",
+    "brookhaven",
+    "mm2"
+}
 
-    local scripts = {
-        {file = "script1.lua", name = "Universal Script 1"},
-        {file = "script2.lua", name = "Universal Script 2"}
-    }
+function Manager:Load(Window)
+    local rank = Rank:GetRank()
 
-    for _, s in ipairs(scripts) do
-        local path = "universal/" .. s.file
+    for _, name in ipairs(tabs) do
+        local url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/" .. name .. ".lua"
+        local fn = loadstring(game:HttpGet(url))
 
-        if not Exclusions:IsExcluded(rank, path) then
-            Tab:AddButton({
-                Name = s.name,
-                Callback = function()
-                    loadstring(game:HttpGet(
-                        "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/scripts/" .. path
-                    ))()
-                end
-            })
-        end
+        fn(Window, rank, Exclusions)
     end
 end
+
+return Manager
