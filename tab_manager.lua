@@ -14,8 +14,8 @@ function Manager:Load(Window)
     local rank = Rank:GetRank()
 
     for _, name in ipairs(tabs) do
-        local tabUrl = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/" .. name .. ".lua"
-        local fn = loadstring(game:HttpGet(tabUrl))
+        local url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/tabs/" .. name .. ".lua"
+        local fn = loadstring(game:HttpGet(url))
 
         fn(Window, rank, Exclusions)
     end
