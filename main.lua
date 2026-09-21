@@ -1,5 +1,10 @@
 --// Synium Hub Main
 
+-- Load OrionLib if not already loaded
+if not shared.OrionLib then
+    shared.OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+end
+
 local OrionLib = shared.OrionLib
 local Icons = shared.SyniumIcons
 local Anim = shared.SyniumAnim
