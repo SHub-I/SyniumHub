@@ -3,7 +3,7 @@ return function(Window, rank, Exclusions)
     local Tab = Window:CreateTab("Universal", 4483345998)
     Tab:CreateSection("Universal Scripts")
     local scripts = {
-        { path = "scripts/universal/script1.lua", name = "Universal Script 1" },
+        { path = "scripts/universal/script1.lua", name = "Infinite Yield" },
         { path = "scripts/universal/script2.lua", name = "Universal Script 2" },
     }
     for _, s in ipairs(scripts) do
