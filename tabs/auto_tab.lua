@@ -28,6 +28,7 @@ return function(Window, rank, Exclusions, tabName)
     local function loadScript(path)
         local raw = httpGet(baseRaw..path.."?ts="..os.time())
         if not raw then return nil end
+
         local ok,fn = pcall(function() return loadstring(raw) end)
         if not ok or type(fn)~="function" then return nil end
 
@@ -65,4 +66,16 @@ return function(Window, rank, Exclusions, tabName)
     Tab:CreateSection(tabName:sub(1,1):upper()..tabName:sub(2).." Scripts")
 
     for _,path in ipairs(listScripts(tabName)) do
-        local name,cb =
+        local name,cb = loadScript(path)
+        if name and cb then
+            Tab:CreateButton({
+                Name = name,
+                Callback = function()
+                    pcall(cb)
+                end
+            })
+        else
+            Tab:CreateLabel({ Text = "Failed: "..path })
+        end
+    end
+end
