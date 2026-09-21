@@ -4,18 +4,16 @@ return function(Window)
     local Tab = Window:CreateTab("Brookhaven")
 
     Tab:AddButton({
-        Name = "Give All Tools",
+        Name = "Brookhaven Script 1",
         Callback = function()
-            for _, v in ipairs(game.ReplicatedStorage.Tools:GetChildren()) do
-                game.ReplicatedStorage.Events.GiveTool:FireServer(v.Name)
-            end
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/scripts/brookhaven/script1.lua"))()
         end
     })
 
     Tab:AddButton({
-        Name = "Speed Boost",
+        Name = "Brookhaven Script 2",
         Callback = function()
-            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 32
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/scripts/brookhaven/script2.lua"))()
         end
     })
 end
