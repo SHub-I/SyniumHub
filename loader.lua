@@ -7,3 +7,4 @@ local function load(path)
 end
 
 load("main.lua")
+warn(("Starting Synium Hub"))
