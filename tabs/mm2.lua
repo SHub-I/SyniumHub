@@ -1,14 +1,8 @@
 return function(Window, rank, Exclusions)
 
-    local Tab = Window:MakeTab({
-        Name = "MM2",
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
-    })
+    local Tab = Window:CreateTab("MM2", 4483345998)
 
-    local Section = Tab:AddSection({
-        Name = "MM2 Scripts"
-    })
+    Tab:CreateSection("MM2 Scripts")
 
     local scripts = {
         {file = "script1.lua", name = "MM2 Script 1"},
@@ -19,7 +13,7 @@ return function(Window, rank, Exclusions)
         local path = "mm2/" .. s.file
 
         if not Exclusions:IsExcluded(rank, path) then
-            Tab:AddButton({
+            Tab:CreateButton({
                 Name = s.name,
                 Callback = function()
                     loadstring(game:HttpGet(
