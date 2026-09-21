@@ -1,5 +1,5 @@
 -- Synium Hub Loader (Rayfield)
-
+warn(("Starting Synium Hub"))
 local base = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/"
 
 local function load(path)
@@ -7,4 +7,3 @@ local function load(path)
 end
 
 load("main.lua")
-warn(("Starting Synium Hub"))
