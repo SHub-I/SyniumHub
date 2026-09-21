@@ -19,7 +19,7 @@ function Manager:Load(Window)
         return
     end
 
-    -- NO TABLE. NO LOOP. NO WEIRDNESS.
+    pcall(function() auto(Window, "None", {}, "empty") end)
     pcall(function() auto(Window, "None", {}, "universal") end)
     pcall(function() auto(Window, "None", {}, "ftap") end)
     pcall(function() auto(Window, "None", {}, "brookhaven") end)
