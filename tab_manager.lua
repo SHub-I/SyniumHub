@@ -19,7 +19,6 @@ function Manager:Load(Window)
         return
     end
 
-    pcall(function() auto(Window, "None", {}, "empty") end)
     pcall(function() auto(Window, "None", {}, "universl") end)
     pcall(function() auto(Window, "None", {}, "ftap") end)
     pcall(function() auto(Window, "None", {}, "brookhaven") end)
