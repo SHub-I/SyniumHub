@@ -21,6 +21,7 @@ function Manager:Load(Window)
 
     pcall(function() auto(Window, "None", {}, "universl") end)
     pcall(function() auto(Window, "None", {}, "ftap") end)
+    pcall(function() auto(Window, "None", {}, "nds") end)
     pcall(function() auto(Window, "None", {}, "brookhaven") end)
     pcall(function() auto(Window, "None", {}, "mm2") end)
 end
