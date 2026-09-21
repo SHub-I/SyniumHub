@@ -1,8 +1,0 @@
-{
-    "Premium": [],
-    "Normal": [
-        "mm2/script2.lua",
-        "brookhaven/script2.lua"
-    ],
-    "None": ["__ALL__"]
-}
