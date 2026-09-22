@@ -140,25 +140,15 @@ if not Rayfield then
     }
 end
 
--- Theme: red accents -------------------------------------------------------
-local RED_ACCENT = Color3.fromRGB(220, 38, 38) -- vivid red
-local RED_ACCENT_DARK = Color3.fromRGB(160, 28, 28)
-
-local DEFAULT_THEME_PATCH = {
-    AccentColor = RED_ACCENT,
-    AccentGlow = 0.14,
-    TabColor = RED_ACCENT,
-    TabBackground = ColorSequence.new(RED_ACCENT, RED_ACCENT_DARK),
-    ElementStroke = Color3.fromRGB(60, 10, 10),
-    ElementCornerRadius = UDim.new(0, 6)
-}
-
 -- Create window with red theme applied
 local Window = Rayfield.CreateWindow({
     name = "Synium Hub",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
-    theme = DEFAULT_THEME_PATCH,
+    theme = {
+        SliderHandle = Color3.fromRGB(207, 0, 0)
+        NeutralButton = Color3.fromRGB(207, 0, 0)
+    }
     configuration = { enabled = true, autoSave = true, autoLoad = true, fileName = "synium_config" }
 })
 
