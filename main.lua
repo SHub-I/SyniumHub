@@ -176,6 +176,61 @@ closetab:CreateButton({
     end,
 })
 
+closetab:CreateButton({
+    name = "Founders Edition Theme",
+    callback = function()
+        window:ChangeTheme({
+            -- Darker window background
+            WindowColor = ColorSequence.new(
+                Color3.fromRGB(8, 8, 10),
+                Color3.fromRGB(14, 14, 18)
+            ),
+
+            -- Text colors
+            ContentColor = Color3.fromRGB(255, 60, 60), -- red text
+            TitlingColor = Color3.fromRGB(255, 60, 60), -- red title text
+            ElementTextHoverColor = Color3.fromRGB(255, 80, 80),
+
+            -- Tabs
+            TabColor = Color3.fromRGB(255, 60, 60), -- red tab text/icons
+
+            -- Buttons
+            NeutralButton = Color3.fromRGB(20, 20, 22), -- black button
+            NeutralButtonHover = Color3.fromRGB(255, 60, 60), -- red hover
+            NeutralButtonStroke = Color3.fromRGB(255, 60, 60), -- red outline
+
+            -- Toggles
+            ToggleTrack = Color3.fromRGB(20, 20, 22), -- black track
+            ToggleKnobOff = Color3.fromRGB(20, 20, 22), -- black knob when off
+            ToggleKnobOffTransparency = 0,
+
+            -- ON uses AccentColor automatically
+            AccentColor = Color3.fromRGB(255, 60, 60), -- red toggle ON
+            AccentStroke = Color3.fromRGB(255, 60, 60),
+
+            -- Sliders
+            SliderProgress = ColorSequence.new(
+                Color3.fromRGB(255, 60, 60),
+                Color3.fromRGB(180, 40, 40)
+            ),
+            SliderHandle = Color3.fromRGB(255, 60, 60),
+
+            -- Fields
+            FieldBackground = Color3.fromRGB(14, 14, 18),
+            PlaceholderColor = Color3.fromRGB(150, 150, 150),
+
+            -- Dropdown highlight
+            DropdownHighlight = Color3.fromRGB(255, 60, 60),
+
+            -- Error colors
+            ErrorColor = Color3.fromRGB(255, 80, 80),
+            ErrorStrokeColor = Color3.fromRGB(255, 40, 40),
+        })
+    end,
+})
+
+
+
 closetab:CreateSection({ name = "Close Hub" })
 
 closetab:CreateButton({
