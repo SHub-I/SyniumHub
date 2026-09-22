@@ -9,10 +9,8 @@ local window = Rayfield:CreateWindow({
     name = "Synium Hub",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
-    theme = "cobalt",
 })
 
--- Save this window globally so next execution can close it
 getgenv().SyniumWindow = window
 
 -- TABS ---------------------------------
@@ -25,6 +23,8 @@ local mm2 = window:CreateTab({ name = "Murder Mystery 2" })
 local ftap = window:CreateTab({ name = "Fling Things and People" })
 
 -- UNIVERSAL ---------------------------------
+
+universal:CreateSection({ name = "Universal Scripts" })
 
 universal:CreateButton({
     name = "Infinite Yield",
@@ -66,6 +66,8 @@ universal:CreateButton({
 
 -- NDS ---------------------------------------
 
+nds:CreateSection({ name = "Natural Disaster Survival Scripts" })
+
 nds:CreateButton({
     name = "Project Gravity",
     callback = function()
@@ -83,6 +85,8 @@ nds:CreateButton({
 })
 
 -- MM2 ---------------------------------------
+
+mm2:CreateSection({ name = "Murder Mystery 2 Scripts" })
 
 mm2:CreateButton({
     name = "YARHM",
@@ -116,6 +120,8 @@ mm2:CreateButton({
 
 -- FTAP ---------------------------------------
 
+ftap:CreateSection({ name = "Fling Things and People Scripts" })
+
 ftap:CreateButton({
     name = "Blitz Hub",
     callback = function()
@@ -124,7 +130,53 @@ ftap:CreateButton({
     end,
 })
 
--- CLOSE TAB ---------------------------------
+-- SYNIUM HUB TAB ---------------------------------
+
+closetab:CreateSection({ name = "Themes" })
+
+closetab:CreateButton({
+    name = "Default Theme",
+    callback = function()
+        window:ChangeTheme("default")
+    end,
+})
+
+closetab:CreateButton({
+    name = "Cobalt Theme",
+    callback = function()
+        window:ChangeTheme("cobalt")
+    end,
+})
+
+closetab:CreateButton({
+    name = "Ember Theme",
+    callback = function()
+        window:ChangeTheme("ember")
+    end,
+})
+
+closetab:CreateButton({
+    name = "Amethyst Theme",
+    callback = function()
+        window:ChangeTheme("amethyst")
+    end,
+})
+
+closetab:CreateButton({
+    name = "Frost Theme",
+    callback = function()
+        window:ChangeTheme("frost")
+    end,
+})
+
+closetab:CreateButton({
+    name = "Rose Theme",
+    callback = function()
+        window:ChangeTheme("rose")
+    end,
+})
+
+closetab:CreateSection({ name = "Close Hub" })
 
 closetab:CreateButton({
     name = "Close Synium Hub",
@@ -135,24 +187,22 @@ closetab:CreateButton({
     end,
 })
 
--- HOME TEXT ---------------------------------
+-- HOME (AUTO UPDATES) ---------------------------------
 
-home:CreateText({
-    name = "Updates",
-    text = "Changed the UI Theme to Cobalt."
-})
+local updates = {
+    "Added new FTaP script 'Blitz Hub'",
+    "Added new MM2 script 'Eagle'",
+    "Added new Universal script 'YARHM'",
+    "Added new Universal script 'Universal FE'",
+    "Added new Universal script 'Infinite Yield'",
+    "Added new NDS scripts 'Project Gravity' & 'NDS Surf'"
+}
 
-home:CreateText({
-    name = "Updates",
-    text = "Added new MM2 script 'Eagle'"
-})
+home:CreateSection({ name = "Updates" })
 
-home:CreateText({
-    name = "Updates",
-    text = "Added new FTaP script 'Blitz Hub'"
-})
-
-home:CreateText({
-    name = "Updates",
-    text = "Added new MM2 script 'YARHM'"
-})
+for _, update in ipairs(updates) do
+    home:CreateText({
+        name = "Update",
+        text = update
+    })
+end
