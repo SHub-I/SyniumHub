@@ -120,6 +120,43 @@ nds:CreateButton({
 -- NDS ---------------------------------------
 
 
+-- MM2 ---------------------------------------
+
+universal:CreateButton({
+    name = "YARHM",
+    callback = function()
+        window:Notify({
+            title = "Ran script",
+            content = "YARHM"
+        })
+
+        local src = ""
+local CoreGui = game:GetService("StarterGui")
+
+pcall(function() 
+    src = game:HttpGet("https://yarhm.com", false)
+end)
+if src == "" then
+  window:Notify({
+  	title = "YARHM Outage",
+  	content = "YARHM Online is currently unavailable! Sorry for the inconvenience. Using YARHM Offline."
+  })
+  src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
+end
+
+
+loadstring(src)()
+
+
+    end,
+})
+
+-- MM2 ------------------------------------
+
+
+
+
+
 closetab:CreateButton({
     name = "Close Synium Hub",
     callback = function()
