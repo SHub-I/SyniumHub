@@ -1,6 +1,7 @@
 -- Store previous window globally
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
+    fadeOut()
 end
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
@@ -9,9 +10,25 @@ local window = Rayfield:CreateWindow({
     name = "Synium Hub",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
+
+    configuration = {
+        autoSave = true,
+        autoLoad = true,
+        fileName = "SyniumHubConfig"
+    }
 })
 
+
+
+
 getgenv().SyniumWindow = window
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local function getRoot(char)
+    return char:FindFirstChild("HumanoidRootPart")
+end
 
 -- TABS ---------------------------------
 
@@ -62,6 +79,163 @@ universal:CreateButton({
 
         loadstring(src)()
     end,
+})
+
+-- REAL INFINITE YIELD FLY (WITH SMOOTHING + SPEED SLIDER) ---------------------------------
+
+local FLYING = false
+local QEfly = true
+local iyflyspeed = 3 -- default speed
+local vehicleflyspeed = 3
+
+local flyKeyDown
+local flyKeyUp
+
+local function sFLY(vfly)
+    local plr = Players.LocalPlayer
+    local char = plr.Character or plr.CharacterAdded:Wait()
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+    if not humanoid then
+        repeat task.wait() until char:FindFirstChildOfClass("Humanoid")
+        humanoid = char:FindFirstChildOfClass("Humanoid")
+    end
+
+    if flyKeyDown or flyKeyUp then
+        flyKeyDown:Disconnect()
+        flyKeyUp:Disconnect()
+    end
+
+    local T = getRoot(char)
+    local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+    local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+    local SPEED = 0
+
+    -- smoothing variables
+    local desired = Vector3.zero
+    local current = Vector3.zero
+    local smoothness = 0.25 -- Option A smoothing
+
+    local function FLY()
+        FLYING = true
+        local BG = Instance.new('BodyGyro')
+        local BV = Instance.new('BodyVelocity')
+        BG.P = 9e4
+        BG.Parent = T
+        BV.Parent = T
+        BG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        BG.CFrame = T.CFrame
+        BV.Velocity = Vector3.new(0, 0, 0)
+        BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+
+        task.spawn(function()
+            repeat task.wait()
+                local camera = workspace.CurrentCamera
+                if not vfly and humanoid then
+                    humanoid.PlatformStand = true
+                end
+
+                -- speed logic
+                if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
+                    SPEED = iyflyspeed * 15
+                else
+                    SPEED = 0
+                end
+
+                -- movement calculation
+                if SPEED > 0 then
+                    desired = (
+                        (camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) +
+                        ((camera.CFrame * CFrame.new(
+                            CONTROL.L + CONTROL.R,
+                            (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2,
+                            0
+                        ).p) - camera.CFrame.p)
+                    ) * SPEED
+
+                    lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
+                else
+                    desired = Vector3.zero
+                end
+
+                -- smooth velocity
+                current = current:Lerp(desired, smoothness)
+                BV.Velocity = current
+
+                BG.CFrame = camera.CFrame
+            until not FLYING
+
+            CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+            lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+            SPEED = 0
+            BG:Destroy()
+            BV:Destroy()
+
+            if humanoid then humanoid.PlatformStand = false end
+        end)
+    end
+
+    flyKeyDown = UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+
+        local speed = (vfly and vehicleflyspeed or iyflyspeed)
+
+        if input.KeyCode == Enum.KeyCode.W then CONTROL.F = speed
+        elseif input.KeyCode == Enum.KeyCode.S then CONTROL.B = -speed
+        elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = -speed
+        elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = speed
+        elseif input.KeyCode == Enum.KeyCode.E and QEfly then CONTROL.Q = speed * 2
+        elseif input.KeyCode == Enum.KeyCode.Q and QEfly then CONTROL.E = -speed * 2
+        end
+    end)
+
+    flyKeyUp = UserInputService.InputEnded:Connect(function(input, processed)
+        if processed then return end
+
+        if input.KeyCode == Enum.KeyCode.W then CONTROL.F = 0
+        elseif input.KeyCode == Enum.KeyCode.S then CONTROL.B = 0
+        elseif input.KeyCode == Enum.KeyCode.A then CONTROL.L = 0
+        elseif input.KeyCode == Enum.KeyCode.D then CONTROL.R = 0
+        elseif input.KeyCode == Enum.KeyCode.E then CONTROL.Q = 0
+        elseif input.KeyCode == Enum.KeyCode.Q then CONTROL.E = 0
+        end
+    end)
+
+    FLY()
+end
+
+local function NOFLY()
+    FLYING = false
+    if flyKeyDown then flyKeyDown:Disconnect() end
+    if flyKeyUp then flyKeyUp:Disconnect() end
+
+    local char = Players.LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = false end
+end
+
+-- Fly toggle
+universal:CreateToggle({
+    name = "Infinite Yield Fly",
+    callback = function(v)
+        if v then
+            sFLY(false)
+        else
+            NOFLY()
+        end
+    end
+})
+
+-- Fly speed slider
+universal:CreateSlider({
+    name = "Fly Speed",
+    min = 1,
+    max = 10,
+    default = 3,
+    callback = function(v)
+        iyflyspeed = v
+        vehicleflyspeed = v
+    end
 })
 
 -- NDS ---------------------------------------
@@ -134,10 +308,8 @@ ftap:CreateButton({
 
 closetab:CreateSection({ name = "Themes" })
 
--- Theme toggles table
 local themeToggles = {}
 
--- Helper: turn all toggles off except the one passed
 local function activateTheme(selected)
     for name, toggle in pairs(themeToggles) do
         if name ~= selected then
@@ -146,7 +318,6 @@ local function activateTheme(selected)
     end
 end
 
--- Helper: apply theme or revert to default
 local function applyTheme(name, enabled)
     if not enabled then
         window:ChangeTheme("default")
@@ -155,24 +326,12 @@ local function applyTheme(name, enabled)
 
     activateTheme(name)
 
-    if name == "default" then
-        window:ChangeTheme("default")
-
-    elseif name == "cobalt" then
-        window:ChangeTheme("cobalt")
-
-    elseif name == "ember" then
-        window:ChangeTheme("ember")
-
-    elseif name == "amethyst" then
-        window:ChangeTheme("amethyst")
-
-    elseif name == "frost" then
-        window:ChangeTheme("frost")
-
-    elseif name == "rose" then
-        window:ChangeTheme("rose")
-
+    if name == "default" then window:ChangeTheme("default")
+    elseif name == "cobalt" then window:ChangeTheme("cobalt")
+    elseif name == "ember" then window:ChangeTheme("ember")
+    elseif name == "amethyst" then window:ChangeTheme("amethyst")
+    elseif name == "frost" then window:ChangeTheme("frost")
+    elseif name == "rose" then window:ChangeTheme("rose")
     elseif name == "founders" then
         window:ChangeTheme({
             WindowColor = ColorSequence.new(
@@ -214,7 +373,6 @@ local function applyTheme(name, enabled)
     end
 end
 
--- Create theme toggles
 themeToggles["default"] = closetab:CreateToggle({
     name = "Default Theme",
     callback = function(v) applyTheme("default", v) end
@@ -250,6 +408,54 @@ themeToggles["founders"] = closetab:CreateToggle({
     callback = function(v) applyTheme("founders", v) end
 })
 
+-- HUB MUSIC TOGGLE ---------------------------------
+
+local sound = Instance.new("Sound")
+sound.SoundId = "rbxassetid://77446979841289"
+sound.Looped = true
+sound.Volume = 0
+sound.Parent = workspace
+
+local fadeSpeed = 0.05
+local musicEnabled = false
+
+local function fadeIn()
+    task.spawn(function()
+        if not sound.IsPlaying then
+            sound:Play()
+        end
+        while sound.Volume < 1 and musicEnabled do
+            sound.Volume += fadeSpeed
+            task.wait()
+        end
+    end)
+end
+
+local function fadeOut()
+    task.spawn(function()
+        while sound.Volume > 0 and not musicEnabled do
+            sound.Volume -= fadeSpeed
+            task.wait()
+        end
+        if sound.Volume <= 0 then
+            sound:Stop()
+        end
+    end)
+end
+
+closetab:CreateToggle({
+    name = "Hub Music",
+    callback = function(v)
+        musicEnabled = v
+        if v then
+            fadeIn()
+        else
+            fadeOut()
+        end
+    end
+})
+
+
 -- CLOSE HUB ---------------------------------
 
 closetab:CreateSection({ name = "Close Hub" })
@@ -257,6 +463,7 @@ closetab:CreateSection({ name = "Close Hub" })
 closetab:CreateButton({
     name = "Close Synium Hub",
     callback = function()
+    	sound:stop()
         window:Notify({ title = "Closing", content = "Bye bye :(" })
         window:Unload()
         getgenv().SyniumWindow = nil
@@ -271,7 +478,8 @@ local updates = {
     "Added new Universal script 'YARHM'",
     "Added new Universal script 'Universal FE'",
     "Added new Universal script 'Infinite Yield'",
-    "Added new NDS scripts 'Project Gravity' & 'NDS Surf'"
+    "Added new NDS scripts 'Project Gravity' & 'NDS Surf'",
+    "Added Infinite Yield Fly (Smoothed)"
 }
 
 home:CreateSection({ name = "Updates" })
