@@ -1,7 +1,7 @@
 -- main.lua (Rayfield Gen2, GitHub-powered Synium Hub)
--- Cleaned: forced tabs, robust GitHub loader, Rayfield Gen2 UI
+-- Clean: forced tabs, robust GitHub loader, Rayfield Gen2 UI
 -- Theme locked to red accents (buttons and toggles)
--- No browser metadata handling included
+-- Home tab removed; no browser metadata included
 
 local HttpService = game:GetService("HttpService")
 local REPO = "SHub-I/SyniumHub"
@@ -182,43 +182,6 @@ local function addButtonToGroup(group, mod, folder)
     if not ok then warn("Failed to add button:", err) end
 end
 
--- Small Home tab (no color picker) -----------------------------------------
-local function createHomeTab(window)
-    local homeTab = window:CreateTab({ name = "Home", icon = 93364949241311 })
-    homeTab:CreateSection({ name = "Overview" })
-
-    homeTab:CreateLabel({ name = "Theme: Red accents (buttons and toggles)" })
-    homeTab:CreateLabel({ name = "Accent color locked to red for consistent UI." })
-
-    homeTab:CreateButton({
-        name = "Reset to Rayfield defaults",
-        callback = function()
-            pcall(function() window:ChangeTheme("default") end)
-            pcall(function() window:Notify({ title = "Theme", content = "Reset to default theme" }) end)
-        end
-    })
-
-    homeTab:CreateButton({
-        name = "Reapply red theme",
-        callback = function()
-            pcall(function() window:ChangeTheme(DEFAULT_THEME_PATCH) end)
-            pcall(function() window:Notify({ title = "Theme", content = "Red theme reapplied" }) end)
-        end
-    })
-
-    homeTab:CreateButton({
-        name = "Show config path",
-        callback = function()
-            local ok, path = pcall(function() return window.GetPath and window:GetPath() end)
-            if ok and path then
-                pcall(function() window:Notify({ title = "Config path", content = tostring(path) }) end)
-            else
-                pcall(function() window:Notify({ title = "Config path", content = "Unavailable" }) end)
-            end
-        end
-    })
-end
-
 -- Build tabs and script buttons ---------------------------------------------
 for _, folder in ipairs(getFolders()) do
     local okTab, err = pcall(function()
@@ -259,11 +222,8 @@ for _, folder in ipairs(getFolders()) do
     if not okTab then warn("Error building tab for folder:", folder, err) end
 end
 
--- Create Home tab and apply red theme --------------------------------------
-pcall(function()
-    createHomeTab(Window)
-    pcall(function() Window:ChangeTheme(DEFAULT_THEME_PATCH) end)
-end)
+-- Apply red theme (ensure theme is set after UI creation)
+pcall(function() Window:ChangeTheme(DEFAULT_THEME_PATCH) end)
 
 -- Finalize / Init ----------------------------------------------------------
 pcall(function() if Window.Init then Window.Init() end end)
