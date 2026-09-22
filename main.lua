@@ -1,7 +1,7 @@
 -- main.lua (Rayfield Gen2, GitHub-powered Synium Hub)
--- Clean: forced tabs, robust GitHub loader, Rayfield Gen2 UI
--- Theme locked to red accents (buttons and toggles)
--- Home tab removed; no browser metadata included
+-- Full script: forced tabs, robust GitHub loader, Rayfield Gen2 UI
+-- Default theme set to vivid red accents; supports Window:ChangeTheme(name_or_table)
+-- No browser metadata or injected data included
 
 local HttpService = game:GetService("HttpService")
 local REPO = "SHub-I/SyniumHub"
@@ -140,15 +140,25 @@ if not Rayfield then
     }
 end
 
--- Create window with red theme applied
+-- Theme helpers -------------------------------------------------------------
+local RED_ACCENT = Color3.fromRGB(220, 38, 38) -- vivid red
+local RED_ACCENT_DARK = Color3.fromRGB(160, 28, 28)
+
+local DEFAULT_THEME_PATCH = {
+    AccentColor = RED_ACCENT,
+    AccentGlow = 0.14,
+    TabColor = RED_ACCENT,
+    TabBackground = ColorSequence.new(RED_ACCENT, RED_ACCENT_DARK),
+    ElementStroke = Color3.fromRGB(60, 10, 10),
+    ElementCornerRadius = UDim.new(0, 6)
+}
+
+-- Create window (default theme uses the red patch; user can pass a built-in name or a table later)
 local Window = Rayfield.CreateWindow({
     name = "Synium Hub",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
-    theme = {
-        SliderHandle = Color3.fromRGB(207, 0, 0)
-        NeutralButton = Color3.fromRGB(207, 0, 0)
-    }
+    theme = DEFAULT_THEME_PATCH,
     configuration = { enabled = true, autoSave = true, autoLoad = true, fileName = "synium_config" }
 })
 
@@ -163,6 +173,7 @@ local function addButtonToGroup(group, mod, folder)
                 callback = function() pcall(mod.Run) end
             })
         else
+            -- older API fallback
             group:AddButton({
                 Name = mod.Name or ("script:"..(mod.Name or folder)),
                 Callback = function() pcall(mod.Run) end
@@ -190,6 +201,7 @@ for _, folder in ipairs(getFolders()) do
 
         if #scripts == 0 then
             Tab:CreateLabel({ name = "No scripts found" })
+            -- placeholder button so tab isn't empty
             Tab:CreateButton({
                 name = "Placeholder: add scripts/"..folder,
                 description = "Add a .lua file to this folder on GitHub",
@@ -212,7 +224,14 @@ for _, folder in ipairs(getFolders()) do
     if not okTab then warn("Error building tab for folder:", folder, err) end
 end
 
--- Apply red theme (ensure theme is set after UI creation)
+-- Example: how to change theme at runtime (exposed for scripts)
+-- Use any built-in name: "default", "cobalt", "ember", "amethyst", "frost", "rose"
+-- Or pass a partial theme table to overlay the current theme.
+-- Examples:
+-- Window:ChangeTheme("ember")
+-- Window:ChangeTheme({ AccentColor = Color3.fromRGB(0,200,170), TabColor = Color3.fromRGB(0,200,170) })
+
+-- Ensure the red patch is applied after UI creation
 pcall(function() Window:ChangeTheme(DEFAULT_THEME_PATCH) end)
 
 -- Finalize / Init ----------------------------------------------------------
