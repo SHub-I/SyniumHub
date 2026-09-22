@@ -134,102 +134,123 @@ ftap:CreateButton({
 
 closetab:CreateSection({ name = "Themes" })
 
-closetab:CreateButton({
-    name = "Default Theme",
-    callback = function()
+-- Theme toggles table
+local themeToggles = {}
+
+-- Helper: turn all toggles off except the one passed
+local function activateTheme(selected)
+    for name, toggle in pairs(themeToggles) do
+        if name ~= selected then
+            toggle:Set(false)
+        end
+    end
+end
+
+-- Helper: apply theme or revert to default
+local function applyTheme(name, enabled)
+    if not enabled then
         window:ChangeTheme("default")
-    end,
-})
+        return
+    end
 
-closetab:CreateButton({
-    name = "Cobalt Theme",
-    callback = function()
+    activateTheme(name)
+
+    if name == "default" then
+        window:ChangeTheme("default")
+
+    elseif name == "cobalt" then
         window:ChangeTheme("cobalt")
-    end,
-})
 
-closetab:CreateButton({
-    name = "Ember Theme",
-    callback = function()
+    elseif name == "ember" then
         window:ChangeTheme("ember")
-    end,
-})
 
-closetab:CreateButton({
-    name = "Amethyst Theme",
-    callback = function()
+    elseif name == "amethyst" then
         window:ChangeTheme("amethyst")
-    end,
-})
 
-closetab:CreateButton({
-    name = "Frost Theme",
-    callback = function()
+    elseif name == "frost" then
         window:ChangeTheme("frost")
-    end,
-})
 
-closetab:CreateButton({
-    name = "Rose Theme",
-    callback = function()
+    elseif name == "rose" then
         window:ChangeTheme("rose")
-    end,
-})
 
-closetab:CreateButton({
-    name = "Founders Edition Theme",
-    callback = function()
+    elseif name == "founders" then
         window:ChangeTheme({
-            -- Darker window background
             WindowColor = ColorSequence.new(
                 Color3.fromRGB(8, 8, 10),
                 Color3.fromRGB(14, 14, 18)
             ),
 
-            -- Text colors
-            ContentColor = Color3.fromRGB(255, 60, 60), -- red text
-            TitlingColor = Color3.fromRGB(255, 60, 60), -- red title text
+            ContentColor = Color3.fromRGB(255, 60, 60),
+            TitlingColor = Color3.fromRGB(255, 60, 60),
             ElementTextHoverColor = Color3.fromRGB(255, 80, 80),
 
-            -- Tabs
-            TabColor = Color3.fromRGB(255, 60, 60), -- red tab text/icons
+            TabColor = Color3.fromRGB(255, 60, 60),
 
-            -- Buttons
-            NeutralButton = Color3.fromRGB(20, 20, 22), -- black button
-            NeutralButtonHover = Color3.fromRGB(255, 60, 60), -- red hover
-            NeutralButtonStroke = Color3.fromRGB(255, 60, 60), -- red outline
+            NeutralButton = Color3.fromRGB(20, 20, 22),
+            NeutralButtonHover = Color3.fromRGB(255, 60, 60),
+            NeutralButtonStroke = Color3.fromRGB(255, 60, 60),
 
-            -- Toggles
-            ToggleTrack = Color3.fromRGB(20, 20, 22), -- black track
-            ToggleKnobOff = Color3.fromRGB(20, 20, 22), -- black knob when off
+            ToggleTrack = Color3.fromRGB(20, 20, 22),
+            ToggleKnobOff = Color3.fromRGB(20, 20, 22),
             ToggleKnobOffTransparency = 0,
 
-            -- ON uses AccentColor automatically
-            AccentColor = Color3.fromRGB(255, 60, 60), -- red toggle ON
+            AccentColor = Color3.fromRGB(255, 60, 60),
             AccentStroke = Color3.fromRGB(255, 60, 60),
 
-            -- Sliders
             SliderProgress = ColorSequence.new(
                 Color3.fromRGB(255, 60, 60),
                 Color3.fromRGB(180, 40, 40)
             ),
             SliderHandle = Color3.fromRGB(255, 60, 60),
 
-            -- Fields
             FieldBackground = Color3.fromRGB(14, 14, 18),
             PlaceholderColor = Color3.fromRGB(150, 150, 150),
 
-            -- Dropdown highlight
             DropdownHighlight = Color3.fromRGB(255, 60, 60),
 
-            -- Error colors
             ErrorColor = Color3.fromRGB(255, 80, 80),
             ErrorStrokeColor = Color3.fromRGB(255, 40, 40),
         })
-    end,
+    end
+end
+
+-- Create theme toggles
+themeToggles["default"] = closetab:CreateToggle({
+    name = "Default Theme",
+    callback = function(v) applyTheme("default", v) end
 })
 
+themeToggles["cobalt"] = closetab:CreateToggle({
+    name = "Cobalt Theme",
+    callback = function(v) applyTheme("cobalt", v) end
+})
 
+themeToggles["ember"] = closetab:CreateToggle({
+    name = "Ember Theme",
+    callback = function(v) applyTheme("ember", v) end
+})
+
+themeToggles["amethyst"] = closetab:CreateToggle({
+    name = "Amethyst Theme",
+    callback = function(v) applyTheme("amethyst", v) end
+})
+
+themeToggles["frost"] = closetab:CreateToggle({
+    name = "Frost Theme",
+    callback = function(v) applyTheme("frost", v) end
+})
+
+themeToggles["rose"] = closetab:CreateToggle({
+    name = "Rose Theme",
+    callback = function(v) applyTheme("rose", v) end
+})
+
+themeToggles["founders"] = closetab:CreateToggle({
+    name = "Founders Edition Theme",
+    callback = function(v) applyTheme("founders", v) end
+})
+
+-- CLOSE HUB ---------------------------------
 
 closetab:CreateSection({ name = "Close Hub" })
 
