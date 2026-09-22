@@ -9,6 +9,7 @@ local window = Rayfield:CreateWindow({
     name = "Synium Hub",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
+    theme = "cobalt",
 })
 
 -- Save this window globally so next execution can close it
@@ -135,6 +136,11 @@ closetab:CreateButton({
 })
 
 -- HOME TEXT ---------------------------------
+
+home:CreateText({
+    name = "Updates",
+    text = "Changed the UI Theme to Cobalt."
+})
 
 home:CreateText({
     name = "Updates",
