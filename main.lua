@@ -1,8 +1,7 @@
 -- main.lua (Rayfield Gen2, GitHub-powered Synium Hub)
--- Simplified: forced tabs, robust GitHub loader, Rayfield Gen2 UI
--- Theme locked to red accents (buttons, toggles, tabs)
--- Paste into SyniumHub/main.lua and run with:
--- loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"))()
+-- Cleaned: forced tabs, robust GitHub loader, Rayfield Gen2 UI
+-- Theme locked to red accents (buttons and toggles)
+-- No browser metadata handling included
 
 local HttpService = game:GetService("HttpService")
 local REPO = "SHub-I/SyniumHub"
@@ -210,9 +209,9 @@ local function createHomeTab(window)
     homeTab:CreateButton({
         name = "Show config path",
         callback = function()
-            local ok, dir, path = pcall(function() return window.GetPath and window:GetPath() end)
-            if ok and dir then
-                pcall(function() window:Notify({ title = "Config path", content = tostring(dir) }) end)
+            local ok, path = pcall(function() return window.GetPath and window:GetPath() end)
+            if ok and path then
+                pcall(function() window:Notify({ title = "Config path", content = tostring(path) }) end)
             else
                 pcall(function() window:Notify({ title = "Config path", content = "Unavailable" }) end)
             end
@@ -265,60 +264,6 @@ pcall(function()
     createHomeTab(Window)
     pcall(function() Window:ChangeTheme(DEFAULT_THEME_PATCH) end)
 end)
-
--- Auto-select tab from edge_all_open_tabs metadata (if present) ------------
-local function getActiveBrowserTab()
-    if type(edge_all_open_tabs) ~= "table" then return nil end
-    for _, t in ipairs(edge_all_open_tabs) do
-        if t.isCurrent then return t end
-    end
-    return edge_all_open_tabs[1]
-end
-
-local function keywordFromText(s)
-    if type(s) ~= "string" then return nil end
-    local cleaned = s:gsub("<[^>]->", ""):gsub("[^%w%-%_%.:/]", " "):lower()
-    for token in cleaned:gmatch("%w+") do
-        if #token >= 3 then return token end
-    end
-    return nil
-end
-
-local function autoNavigateFromBrowser()
-    local tabInfo = getActiveBrowserTab()
-    if not tabInfo then return end
-
-    local candidates = {}
-    if tabInfo.pageTitle then table.insert(candidates, tabInfo.pageTitle) end
-    if tabInfo.pageUrl then table.insert(candidates, tabInfo.pageUrl) end
-
-    local keyword = nil
-    for _, txt in ipairs(candidates) do
-        keyword = keywordFromText(txt)
-        if keyword then break end
-    end
-    if not keyword then return end
-
-    local available = {}
-    for _, name in ipairs(FORCED_TABS) do available[name:lower()] = name end
-    for _, folder in ipairs(getFolders()) do available[folder:lower()] = folder end
-
-    local target = available[keyword]
-    if not target then
-        for k, v in pairs(available) do
-            if k:find(keyword, 1, true) or keyword:find(k, 1, true) then
-                target = v
-                break
-            end
-        end
-    end
-
-    if target and Window and Window.Navigate then
-        pcall(function() Window:Navigate(target) end)
-    end
-end
-
-pcall(autoNavigateFromBrowser)
 
 -- Finalize / Init ----------------------------------------------------------
 pcall(function() if Window.Init then Window.Init() end end)
