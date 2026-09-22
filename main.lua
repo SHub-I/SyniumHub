@@ -1,4 +1,9 @@
 -- main.lua (Rayfield Gen2, GitHub-powered Synium Hub)
+-- Simplified: forced tabs, robust GitHub loader, Rayfield Gen2 UI
+-- Theme locked to red accents (buttons, toggles, tabs)
+-- Paste into SyniumHub/main.lua and run with:
+-- loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"))()
+
 local HttpService = game:GetService("HttpService")
 local REPO = "SHub-I/SyniumHub"
 local SCRIPTS_PATH = "scripts"
@@ -9,6 +14,7 @@ local RAYFIELD_URL = "https://sirius.menu/gen2"
 -- Tabs you always want visible (even if GitHub hides empty folders)
 local FORCED_TABS = { "brookhaven", "mm2", "ftap", "universal" }
 
+-- Utilities -----------------------------------------------------------------
 local function api(path) return "https://api.github.com/repos/"..REPO.."/contents/"..path end
 local function raw(path) return "https://raw.githubusercontent.com/"..REPO.."/main/"..path end
 
@@ -26,6 +32,7 @@ local function getJSON(url)
     return decoded
 end
 
+-- GitHub listing ------------------------------------------------------------
 local function getFolders()
     local data = getJSON(api(SCRIPTS_PATH))
     if not data or type(data) ~= "table" then
@@ -58,19 +65,21 @@ local function fetchScript(folder, file)
     return safeGet(raw(SCRIPTS_PATH .. "/" .. folder .. "/" .. file))
 end
 
--- compile: returns table { Name=string, Description=string?, Icon=string|number?, Run=function }
+-- Compile sandbox -----------------------------------------------------------
+-- compile: returns table { Name=string, Description=string?, Icon=string|number?, Run=function, Meta=table? }
 local function compile(code, id)
     if type(code) ~= "string" then return nil end
     local ok, fn = pcall(function() return loadstring(code) end)
     if not ok or type(fn) ~= "function" then return nil end
 
-    local regName, regFn, metaDesc, metaIcon
+    local regName, regFn
     local env = {
         Register = function(name, fnc)
             if type(name) == "string" and type(fnc) == "function" then regName, regFn = name, fnc end
         end,
         Description = nil,
         Icon = nil,
+        Meta = nil,
         print = print, warn = warn, tostring = tostring,
         string = string, table = table, math = math,
         os = { time = os.time }, wait = task.wait
@@ -81,25 +90,22 @@ local function compile(code, id)
     local ok2, ret = pcall(fn)
     if not ok2 then return nil end
 
-    -- If Register was used
     if regFn then
-        return { Name = regName or id, Description = env.Description, Icon = env.Icon, Run = regFn }
+        return { Name = regName or id, Description = env.Description, Icon = env.Icon, Run = regFn, Meta = env.Meta }
     end
 
-    -- If script returned a function
     if type(ret) == "function" then
-        return { Name = id, Description = env.Description, Icon = env.Icon, Run = ret }
+        return { Name = id, Description = env.Description, Icon = env.Icon, Run = ret, Meta = env.Meta }
     end
 
-    -- If script returned a table with Run
     if type(ret) == "table" and type(ret.Run) == "function" then
-        return { Name = ret.Name or id, Description = ret.Description, Icon = ret.Icon, Run = ret.Run }
+        return { Name = ret.Name or id, Description = ret.Description, Icon = ret.Icon, Run = ret.Run, Meta = ret.Meta }
     end
 
     return nil
 end
 
--- Load Rayfield Gen2
+-- Rayfield loader -----------------------------------------------------------
 local Rayfield = nil
 do
     local loader = safeGet(RAYFIELD_URL)
@@ -109,44 +115,57 @@ do
     end
 end
 
--- Fallback stub so UI code never crashes
+-- Fallback stub so UI code never crashes (keeps API shape)
 if not Rayfield then
     Rayfield = {
-        CreateWindow = function() 
+        CreateWindow = function()
             return {
-                CreateTab = function() 
-                    return {
-                        CreateSection = function() end,
-                        CreateGroup = function() return { CreateButton = function() end, CreateSection = function() end } end,
-                        CreateButton = function() end,
-                        CreateLabel = function() end,
-                        Select = function() end
-                    }
-                end,
+                CreateTab = function() return {
+                    CreateSection = function() end,
+                    CreateGroup = function() return { CreateButton = function() end, CreateSection = function() end } end,
+                    CreateButton = function() end,
+                    CreateLabel = function() end,
+                    Select = function() end
+                } end,
                 CreateSection = function() end,
                 Notify = function() end,
                 ChangeTheme = function() end,
                 Save = function() return false end,
                 Load = function() return false end,
-                Navigate = function() end
+                Navigate = function() end,
+                Get = function() return nil end,
+                Set = function() end,
+                GetPath = function() return nil end
             }
         end
     }
 end
 
--- Create window (sidebarLayout true by default for rail)
+-- Theme: red accents -------------------------------------------------------
+local RED_ACCENT = Color3.fromRGB(220, 38, 38) -- vivid red
+local RED_ACCENT_DARK = Color3.fromRGB(160, 28, 28)
+
+local DEFAULT_THEME_PATCH = {
+    AccentColor = RED_ACCENT,
+    AccentGlow = 0.14,
+    TabColor = RED_ACCENT,
+    TabBackground = ColorSequence.new(RED_ACCENT, RED_ACCENT_DARK),
+    ElementStroke = Color3.fromRGB(60, 10, 10),
+    ElementCornerRadius = UDim.new(0, 6)
+}
+
+-- Create window with red theme applied
 local Window = Rayfield.CreateWindow({
     name = "Synium Hub",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
-    theme = "default",
-    configuration = { enabled = false }
+    theme = DEFAULT_THEME_PATCH,
+    configuration = { enabled = true, autoSave = true, autoLoad = true, fileName = "synium_config" }
 })
 
--- Helper: safe add button using Rayfield API variants
+-- Helper: add button to a group (handles API variants)
 local function addButtonToGroup(group, mod, folder)
     local ok, err = pcall(function()
-        -- Rayfield Gen2 uses CreateButton with name/callback
         if group.CreateButton then
             group:CreateButton({
                 name = mod.Name or ("script:"..(mod.Name or folder)),
@@ -155,7 +174,6 @@ local function addButtonToGroup(group, mod, folder)
                 callback = function() pcall(mod.Run) end
             })
         else
-            -- older API fallback
             group:AddButton({
                 Name = mod.Name or ("script:"..(mod.Name or folder)),
                 Callback = function() pcall(mod.Run) end
@@ -165,7 +183,44 @@ local function addButtonToGroup(group, mod, folder)
     if not ok then warn("Failed to add button:", err) end
 end
 
--- Build tabs
+-- Small Home tab (no color picker) -----------------------------------------
+local function createHomeTab(window)
+    local homeTab = window:CreateTab({ name = "Home", icon = 93364949241311 })
+    homeTab:CreateSection({ name = "Overview" })
+
+    homeTab:CreateLabel({ name = "Theme: Red accents (buttons and toggles)" })
+    homeTab:CreateLabel({ name = "Accent color locked to red for consistent UI." })
+
+    homeTab:CreateButton({
+        name = "Reset to Rayfield defaults",
+        callback = function()
+            pcall(function() window:ChangeTheme("default") end)
+            pcall(function() window:Notify({ title = "Theme", content = "Reset to default theme" }) end)
+        end
+    })
+
+    homeTab:CreateButton({
+        name = "Reapply red theme",
+        callback = function()
+            pcall(function() window:ChangeTheme(DEFAULT_THEME_PATCH) end)
+            pcall(function() window:Notify({ title = "Theme", content = "Red theme reapplied" }) end)
+        end
+    })
+
+    homeTab:CreateButton({
+        name = "Show config path",
+        callback = function()
+            local ok, dir, path = pcall(function() return window.GetPath and window:GetPath() end)
+            if ok and dir then
+                pcall(function() window:Notify({ title = "Config path", content = tostring(dir) }) end)
+            else
+                pcall(function() window:Notify({ title = "Config path", content = "Unavailable" }) end)
+            end
+        end
+    })
+end
+
+-- Build tabs and script buttons ---------------------------------------------
 for _, folder in ipairs(getFolders()) do
     local okTab, err = pcall(function()
         local tabName = (folder and #folder>0) and (folder:sub(1,1):upper() .. folder:sub(2)) or folder
@@ -183,7 +238,6 @@ for _, folder in ipairs(getFolders()) do
 
         if #scripts == 0 then
             Tab:CreateLabel({ name = "No scripts found" })
-            -- placeholder button so tab isn't empty
             Tab:CreateButton({
                 name = "Placeholder: add scripts/"..folder,
                 description = "Add a .lua file to this folder on GitHub",
@@ -206,11 +260,67 @@ for _, folder in ipairs(getFolders()) do
     if not okTab then warn("Error building tab for folder:", folder, err) end
 end
 
--- Example usage of window methods (exposed for scripts to call)
--- Window:Navigate("Brookhaven") -- navigate by name
--- Window:ChangeTheme("ember") -- change theme at runtime
--- Window:Save() -- save config (if enabled)
--- Window:Load() -- load config (if enabled)
+-- Create Home tab and apply red theme --------------------------------------
+pcall(function()
+    createHomeTab(Window)
+    pcall(function() Window:ChangeTheme(DEFAULT_THEME_PATCH) end)
+end)
 
--- If Rayfield has an Init or similar, call it safely
+-- Auto-select tab from edge_all_open_tabs metadata (if present) ------------
+local function getActiveBrowserTab()
+    if type(edge_all_open_tabs) ~= "table" then return nil end
+    for _, t in ipairs(edge_all_open_tabs) do
+        if t.isCurrent then return t end
+    end
+    return edge_all_open_tabs[1]
+end
+
+local function keywordFromText(s)
+    if type(s) ~= "string" then return nil end
+    local cleaned = s:gsub("<[^>]->", ""):gsub("[^%w%-%_%.:/]", " "):lower()
+    for token in cleaned:gmatch("%w+") do
+        if #token >= 3 then return token end
+    end
+    return nil
+end
+
+local function autoNavigateFromBrowser()
+    local tabInfo = getActiveBrowserTab()
+    if not tabInfo then return end
+
+    local candidates = {}
+    if tabInfo.pageTitle then table.insert(candidates, tabInfo.pageTitle) end
+    if tabInfo.pageUrl then table.insert(candidates, tabInfo.pageUrl) end
+
+    local keyword = nil
+    for _, txt in ipairs(candidates) do
+        keyword = keywordFromText(txt)
+        if keyword then break end
+    end
+    if not keyword then return end
+
+    local available = {}
+    for _, name in ipairs(FORCED_TABS) do available[name:lower()] = name end
+    for _, folder in ipairs(getFolders()) do available[folder:lower()] = folder end
+
+    local target = available[keyword]
+    if not target then
+        for k, v in pairs(available) do
+            if k:find(keyword, 1, true) or keyword:find(k, 1, true) then
+                target = v
+                break
+            end
+        end
+    end
+
+    if target and Window and Window.Navigate then
+        pcall(function() Window:Navigate(target) end)
+    end
+end
+
+pcall(autoNavigateFromBrowser)
+
+-- Finalize / Init ----------------------------------------------------------
 pcall(function() if Window.Init then Window.Init() end end)
+
+-- End of file
