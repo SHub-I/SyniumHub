@@ -1,24 +1,40 @@
--- main.lua
+-- main.lua (GitHub-powered Synium Hub)
 
--- Orion boot (from your docs)
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jensonhirst/Orion/main/source"))()
 
--- Create window
-local Window = OrionLib:MakeWindow({
-    Name = "Synium Hub",
-    HidePremium = false,
-    SaveConfig = false,
-    IntroEnabled = false
-})
+local REPO = "SHub-I/SyniumHub"
+local SCRIPTS_PATH = "scripts"
 
--- Helpers
+local function api(path)
+    return "https://api.github.com/repos/" .. REPO .. "/contents/" .. path
+end
+
+local function raw(path)
+    return "https://raw.githubusercontent.com/" .. REPO .. "/main/" .. path
+end
+
+local function getJSON(url)
+    local ok, res = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if not ok then return nil end
+
+    local ok2, decoded = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(res)
+    end)
+    if not ok2 then return nil end
+
+    return decoded
+end
+
 local function getFolders()
-    if not listfiles then return {} end
+    local data = getJSON(api(SCRIPTS_PATH))
+    if not data then return {} end
+
     local out = {}
-    for _, path in ipairs(listfiles("scripts")) do
-        local folder = path:match("scripts/(.-)$")
-        if folder and isfolder("scripts/" .. folder) then
-            table.insert(out, folder)
+    for _, item in ipairs(data) do
+        if item.type == "dir" then
+            table.insert(out, item.name)
         end
     end
     table.sort(out)
@@ -26,15 +42,21 @@ local function getFolders()
 end
 
 local function getScripts(folder)
-    if not listfiles then return {} end
+    local data = getJSON(api(SCRIPTS_PATH .. "/" .. folder))
+    if not data then return {} end
+
     local out = {}
-    for _, path in ipairs(listfiles("scripts/" .. folder)) do
-        if path:match("%.lua$") then
-            table.insert(out, path)
+    for _, item in ipairs(data) do
+        if item.type == "file" and item.name:match("%.lua$") then
+            table.insert(out, item.name)
         end
     end
     table.sort(out)
     return out
+end
+
+local function fetchScript(folder, file)
+    return game:HttpGet(raw(SCRIPTS_PATH .. "/" .. folder .. "/" .. file))
 end
 
 local function compile(code, id)
@@ -73,43 +95,38 @@ local function compile(code, id)
     return nil
 end
 
--- Build UI from scripts/
+local Window = OrionLib:MakeWindow({
+    Name = "Synium Hub",
+    HidePremium = false,
+    SaveConfig = false,
+    IntroEnabled = false
+})
+
 for _, folder in ipairs(getFolders()) do
     local tabName = folder:sub(1,1):upper() .. folder:sub(2)
     local Tab = Window:MakeTab({
         Name = tabName,
-        Icon = "rbxassetid://4483345998",
-        PremiumOnly = false
+        Icon = "rbxassetid://4483345998"
     })
 
     Tab:AddSection(tabName .. " Scripts")
 
-    local scripts = getScripts(folder)
-    if #scripts == 0 then
-        Tab:AddLabel("No scripts found")
-    end
+    for _, file in ipairs(getScripts(folder)) do
+        local code = fetchScript(folder, file)
+        local id = file:gsub("%.lua$", "")
+        local mod = compile(code, id)
 
-    for _, path in ipairs(scripts) do
-        local raw = readfile(path)
-        local id = path:match("([^/]+)%.lua$") or path
-
-        if not raw then
-            Tab:AddLabel("Missing: " .. id)
+        if mod then
+            Tab:AddButton({
+                Name = mod.Name,
+                Callback = function()
+                    pcall(mod.Run)
+                end
+            })
         else
-            local mod = compile(raw, id)
-            if not mod then
-                Tab:AddLabel("Failed: " .. id)
-            else
-                Tab:AddButton({
-                    Name = mod.Name,
-                    Callback = function()
-                        pcall(mod.Run)
-                    end
-                })
-            end
+            Tab:AddLabel("Failed: " .. id)
         end
     end
 end
 
--- REQUIRED (from your docs)
 OrionLib:Init()
