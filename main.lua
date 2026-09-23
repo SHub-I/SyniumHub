@@ -1,11 +1,31 @@
--- Synium Hub (Premium + Lite) — Rayfield Key System
+-- Synium Hub main.lua (FULL VERSION)
+-- Requires keysystem.lua
+
+------------------------------------------------------------
+-- KEYSYSTEM PROTECTION
+------------------------------------------------------------
+
+if not getgenv().SyniumKeySystemLoaded then
+    game.Players.LocalPlayer:Kick("Please run keysystem.lua first.")
+    return
+end
+
+local mode = getgenv().SyniumMode
+if not mode then
+    game.Players.LocalPlayer:Kick("Key system failed to set mode.")
+    return
+end
+
+------------------------------------------------------------
+-- CLEANUP
+------------------------------------------------------------
 
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
 end
 
 ------------------------------------------------------------
--- RAYFIELD + KEY SYSTEM
+-- RAYFIELD WINDOW
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
@@ -15,17 +35,6 @@ local window = Rayfield:CreateWindow({
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
 
-    KeySystem = true,
-    KeySettings = {
-        Title = "Synium Hub",
-        Subtitle = "Key System",
-        Note = "Enter your key to continue",
-        FileName = "SyniumKey",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = {"23209pre", "9023lite"} -- Premium / Lite keys
-    },
-
     configuration = {
         autoSave = true,
         autoLoad = true,
@@ -34,22 +43,6 @@ local window = Rayfield:CreateWindow({
 })
 
 getgenv().SyniumWindow = window
-
-------------------------------------------------------------
--- DETECT KEY MODE
-------------------------------------------------------------
-
-local key = Rayfield.CurrentKey
-local mode = nil
-
-if key == "23209pre" then
-    mode = "premium"
-elseif key == "9023lite" then
-    mode = "lite"
-else
-    window:Unload()
-    return
-end
 
 ------------------------------------------------------------
 -- SERVICES
@@ -78,12 +71,9 @@ local ftap = window:CreateTab({ name = "Fling Things and People" })
 ------------------------------------------------------------
 
 if mode == "lite" then
-    -- Remove premium-only tabs
     nds:Destroy()
     mm2:Destroy()
     ftap:Destroy()
-
-    -- Remove themes + music
     closetab:Destroy()
 end
 
@@ -122,7 +112,7 @@ universal:CreateButton({
         if src == "" then
             window:Notify({
                 title = "YARHM Outage",
-                content = "YARHM Online unavailable. Using Offline version."
+                content = "Using Offline version."
             })
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
@@ -132,7 +122,7 @@ universal:CreateButton({
 })
 
 ------------------------------------------------------------
--- FLY SYSTEM (unchanged)
+-- FLY SYSTEM
 ------------------------------------------------------------
 
 local FLYING = false
@@ -275,10 +265,13 @@ universal:CreateSlider({
 })
 
 ------------------------------------------------------------
--- NDS (Premium only)
+-- PREMIUM TABS (only if mode == "premium")
 ------------------------------------------------------------
 
 if mode == "premium" then
+    ------------------------------------------------------------
+    -- NDS
+    ------------------------------------------------------------
     nds:CreateSection({ name = "Natural Disaster Survival Scripts" })
 
     nds:CreateButton({
@@ -296,13 +289,10 @@ if mode == "premium" then
             loadstring(game:HttpGet("https://pastefy.app/pTL8Ck6D/raw"))()
         end,
     })
-end
 
-------------------------------------------------------------
--- MM2 (Premium only)
-------------------------------------------------------------
-
-if mode == "premium" then
+    ------------------------------------------------------------
+    -- MM2
+    ------------------------------------------------------------
     mm2:CreateSection({ name = "Murder Mystery 2 Scripts" })
 
     mm2:CreateButton({
@@ -334,13 +324,10 @@ if mode == "premium" then
             loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
         end,
     })
-end
 
-------------------------------------------------------------
--- FTAP (Premium only)
-------------------------------------------------------------
-
-if mode == "premium" then
+    ------------------------------------------------------------
+    -- FTAP
+    ------------------------------------------------------------
     ftap:CreateSection({ name = "Fling Things and People Scripts" })
 
     ftap:CreateButton({
@@ -350,13 +337,11 @@ if mode == "premium" then
             loadstring(game:HttpGet("https://you.whimper.xyz/sources/blitz/source.lua"))()
         end,
     })
-end
 
-------------------------------------------------------------
--- THEMES + MUSIC (Premium only)
-------------------------------------------------------------
+    ------------------------------------------------------------
+    -- THEMES + MUSIC
+    ------------------------------------------------------------
 
-if mode == "premium" then
     closetab:CreateSection({ name = "Themes" })
 
     local themeToggles = {}
@@ -533,7 +518,7 @@ local updates = {
     "Added new Universal script 'Infinite Yield'",
     "Added new NDS scripts 'Project Gravity' & 'NDS Surf'",
     "Added Infinite Yield Fly (Smoothed)",
-    "Key System Added (Premium + Lite)"
+    "Custom Key System Added (Premium + Lite)"
 }
 
 home:CreateSection({ name = "Updates" })
