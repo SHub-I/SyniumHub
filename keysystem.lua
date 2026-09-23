@@ -1,23 +1,21 @@
 -- Synium Hub Key System (Standalone Loader)
 
--- CONFIG
 local PremiumKey = "23209pre"
 local LiteKey = "9023lite"
 
--- CLEANUP
 pcall(function()
     if getgenv().SyniumKeyUI then
         getgenv().SyniumKeyUI:Destroy()
     end
 end)
 
--- GUI ROOT
+local TweenService = game:GetService("TweenService")
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SyniumKeyUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 getgenv().SyniumKeyUI = ScreenGui
 
--- MAIN FRAME
 local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 420, 0, 260)
 Frame.Position = UDim2.new(0.5, -210, 0.5, -130)
@@ -29,7 +27,11 @@ local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 12)
 Corner.Parent = Frame
 
--- TITLE
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(80, 80, 90)
+Stroke.Parent = Frame
+
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 50)
 Title.BackgroundTransparency = 1
@@ -39,7 +41,6 @@ Title.Font = Enum.Font.GothamBold
 Title.TextSize = 22
 Title.Parent = Frame
 
--- INPUT BOX
 local Input = Instance.new("TextBox")
 Input.Size = UDim2.new(1, -40, 0, 45)
 Input.Position = UDim2.new(0, 20, 0, 80)
@@ -56,7 +57,6 @@ local InputCorner = Instance.new("UICorner")
 InputCorner.CornerRadius = UDim.new(0, 8)
 InputCorner.Parent = Input
 
--- BUTTON
 local Button = Instance.new("TextButton")
 Button.Size = UDim2.new(1, -40, 0, 45)
 Button.Position = UDim2.new(0, 20, 0, 150)
@@ -71,7 +71,6 @@ local ButtonCorner = Instance.new("UICorner")
 ButtonCorner.CornerRadius = UDim.new(0, 8)
 ButtonCorner.Parent = Button
 
--- ERROR LABEL
 local Error = Instance.new("TextLabel")
 Error.Size = UDim2.new(1, 0, 0, 30)
 Error.Position = UDim2.new(0, 0, 0, 200)
@@ -82,35 +81,69 @@ Error.Font = Enum.Font.GothamSemibold
 Error.TextSize = 16
 Error.Parent = Frame
 
--- SHAKE FUNCTION
-local function shake()
-    for i = 1, 6 do
-        Frame.Position = Frame.Position + UDim2.new(0, math.random(-6, 6), 0, 0)
-        task.wait(0.03)
-    end
-    Frame.Position = UDim2.new(0.5, -210, 0.5, -130)
+local function flashStroke(color)
+    local toColor = TweenService:Create(
+        Stroke,
+        TweenInfo.new(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+        { Color = color }
+    )
+    local backColor = TweenService:Create(
+        Stroke,
+        TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+        { Color = Color3.fromRGB(80, 80, 90) }
+    )
+    toColor:Play()
+    toColor.Completed:Wait()
+    backColor:Play()
 end
 
--- BUTTON LOGIC
+local function fadeOutAndLoad(mode)
+    local fade = TweenService:Create(
+        Frame,
+        TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { BackgroundTransparency = 1 }
+    )
+
+    local children = Frame:GetDescendants()
+    for _, obj in ipairs(children) do
+        if obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton") then
+            TweenService:Create(
+                obj,
+                TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                { TextTransparency = 1 }
+            ):Play()
+        elseif obj:IsA("UIStroke") then
+            TweenService:Create(
+                obj,
+                TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                { Transparency = 1 }
+            ):Play()
+        end
+    end
+
+    fade:Play()
+    fade.Completed:Wait()
+
+    getgenv().SyniumMode = mode
+    getgenv().SyniumKeySystemLoaded = true
+
+    ScreenGui:Destroy()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"))()
+end
+
 Button.MouseButton1Click:Connect(function()
     local key = Input.Text
 
     if key == PremiumKey then
         Error.Text = ""
-        getgenv().SyniumMode = "premium"
-        getgenv().SyniumKeySystemLoaded = true
-        ScreenGui:Destroy()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"))()
-
+        flashStroke(Color3.fromRGB(60, 200, 100))
+        fadeOutAndLoad("premium")
     elseif key == LiteKey then
         Error.Text = ""
-        getgenv().SyniumMode = "lite"
-        getgenv().SyniumKeySystemLoaded = true
-        ScreenGui:Destroy()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"))()
-
+        flashStroke(Color3.fromRGB(60, 200, 100))
+        fadeOutAndLoad("lite")
     else
         Error.Text = "Invalid key!"
-        shake()
+        flashStroke(Color3.fromRGB(255, 80, 80))
     end
 end)
