@@ -48,6 +48,13 @@ local function isAllowed(list)
     return false
 end
 
+-- LITE CHECK (must run BEFORE Rayfield loads)
+if not isAllowed(whitelist.lite) then
+    if getgenv().SyniumWindow then
+        getgenv().SyniumWindow:Unload()
+    end
+    return
+end
 
 -- RAYFIELD ---------------------------------
 
@@ -66,15 +73,6 @@ local window = Rayfield:CreateWindow({
 })
 
 getgenv().SyniumWindow = window
-
--- LITE CHECK
-if not isAllowed(whitelist.lite) then
-    if getgenv().SyniumWindow then
-        getgenv().SyniumWindow:Unload()
-    end
-    return
-end
-
 
 -- TABS ---------------------------------
 

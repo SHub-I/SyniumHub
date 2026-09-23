@@ -43,6 +43,14 @@ local function isAllowed(list)
     return false
 end
 
+-- PREMIUM CHECK ---------------------------------
+if not isAllowed(whitelist.premium) then
+    if getgenv().SyniumWindow then
+        getgenv().SyniumWindow:Unload()
+    end
+    return
+end
+
 
 -- Store previous window globally
 if getgenv().SyniumWindow then
