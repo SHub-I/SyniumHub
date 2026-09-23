@@ -67,6 +67,15 @@ local window = Rayfield:CreateWindow({
 
 getgenv().SyniumWindow = window
 
+-- LITE CHECK
+if not isAllowed(whitelist.lite) then
+    if getgenv().SyniumWindow then
+        getgenv().SyniumWindow:Unload()
+    end
+    return
+end
+
+
 -- TABS ---------------------------------
 
 local home = window:CreateTab({ name = "Home" })
