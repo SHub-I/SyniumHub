@@ -1,61 +1,12 @@
--- PLAYER WHITELIST SYSTEM ---------------------------------
+-- Synium Hub (Premium + Lite) — Rayfield Key System
 
-local function loadPlayersYML()
-    local raw = ""
-
-    -- Try local file first
-    pcall(function()
-        raw = readfile("players.yml")
-    end)
-
-    -- If not found, load from GitHub
-    if raw == "" then
-        raw = game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/players.yml")
-    end
-
-    local sections = { lite = {}, premium = {} }
-    local current = nil
-
-    for line in raw:gmatch("[^\r\n]+") do
-        local section = line:match("^(%w+):")
-        if section and sections[section] then
-            current = section
-        else
-            local name = line:match("%-%s*(.+)")
-            if name and current then
-                table.insert(sections[current], name)
-            end
-        end
-    end
-
-    return sections
-end
-
-local whitelist = loadPlayersYML()
-local localName = game.Players.LocalPlayer.Name
-
-local function isAllowed(list)
-    for _, v in ipairs(list) do
-        if v == localName then
-            return true
-        end
-    end
-    return false
-end
-
--- PREMIUM CHECK ---------------------------------
-if not isAllowed(whitelist.premium) then
-    if getgenv().SyniumWindow then
-        getgenv().SyniumWindow:Unload()
-    end
-    return
-end
-
-
--- Store previous window globally
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
 end
+
+------------------------------------------------------------
+-- RAYFIELD + KEY SYSTEM
+------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
@@ -64,6 +15,17 @@ local window = Rayfield:CreateWindow({
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
 
+    KeySystem = true,
+    KeySettings = {
+        Title = "Synium Hub",
+        Subtitle = "Key System",
+        Note = "Enter your key to continue",
+        FileName = "SyniumKey",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"23209pre", "9023lite"} -- Premium / Lite keys
+    },
+
     configuration = {
         autoSave = true,
         autoLoad = true,
@@ -71,12 +33,27 @@ local window = Rayfield:CreateWindow({
     }
 })
 
-
-
-
 getgenv().SyniumWindow = window
 
+------------------------------------------------------------
+-- DETECT KEY MODE
+------------------------------------------------------------
 
+local key = Rayfield.CurrentKey
+local mode = nil
+
+if key == "23209pre" then
+    mode = "premium"
+elseif key == "9023lite" then
+    mode = "lite"
+else
+    window:Unload()
+    return
+end
+
+------------------------------------------------------------
+-- SERVICES
+------------------------------------------------------------
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -85,7 +62,9 @@ local function getRoot(char)
     return char:FindFirstChild("HumanoidRootPart")
 end
 
--- TABS ---------------------------------
+------------------------------------------------------------
+-- TABS
+------------------------------------------------------------
 
 local home = window:CreateTab({ name = "Home" })
 local closetab = window:CreateTab({ name = "Synium Hub" })
@@ -94,7 +73,23 @@ local nds = window:CreateTab({ name = "Natural Disaster Survival" })
 local mm2 = window:CreateTab({ name = "Murder Mystery 2" })
 local ftap = window:CreateTab({ name = "Fling Things and People" })
 
--- UNIVERSAL ---------------------------------
+------------------------------------------------------------
+-- LITE MODE FILTER
+------------------------------------------------------------
+
+if mode == "lite" then
+    -- Remove premium-only tabs
+    nds:Destroy()
+    mm2:Destroy()
+    ftap:Destroy()
+
+    -- Remove themes + music
+    closetab:Destroy()
+end
+
+------------------------------------------------------------
+-- UNIVERSAL TAB
+------------------------------------------------------------
 
 universal:CreateSection({ name = "Universal Scripts" })
 
@@ -136,11 +131,13 @@ universal:CreateButton({
     end,
 })
 
--- REAL INFINITE YIELD FLY (WITH SMOOTHING + SPEED SLIDER) ---------------------------------
+------------------------------------------------------------
+-- FLY SYSTEM (unchanged)
+------------------------------------------------------------
 
 local FLYING = false
 local QEfly = true
-local iyflyspeed = 3 -- default speed
+local iyflyspeed = 3
 local vehicleflyspeed = 3
 
 local flyKeyDown
@@ -166,10 +163,9 @@ local function sFLY(vfly)
     local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
     local SPEED = 0
 
-    -- smoothing variables
     local desired = Vector3.zero
     local current = Vector3.zero
-    local smoothness = 0.25 -- Option A smoothing
+    local smoothness = 0.25
 
     local function FLY()
         FLYING = true
@@ -190,14 +186,12 @@ local function sFLY(vfly)
                     humanoid.PlatformStand = true
                 end
 
-                -- speed logic
                 if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
                     SPEED = iyflyspeed * 15
                 else
                     SPEED = 0
                 end
 
-                -- movement calculation
                 if SPEED > 0 then
                     desired = (
                         (camera.CFrame.LookVector * (CONTROL.F + CONTROL.B)) +
@@ -213,7 +207,6 @@ local function sFLY(vfly)
                     desired = Vector3.zero
                 end
 
-                -- smooth velocity
                 current = current:Lerp(desired, smoothness)
                 BV.Velocity = current
 
@@ -259,29 +252,17 @@ local function sFLY(vfly)
     FLY()
 end
 
-local function NOFLY()
-    FLYING = false
-    if flyKeyDown then flyKeyDown:Disconnect() end
-    if flyKeyUp then flyKeyUp:Disconnect() end
-
-    local char = Players.LocalPlayer.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.PlatformStand = false end
-end
-
--- Fly toggle
 universal:CreateToggle({
     name = "Infinite Yield Fly",
     callback = function(v)
         if v then
             sFLY(false)
         else
-            NOFLY()
+            FLYING = false
         end
     end
 })
 
--- Fly speed slider
 universal:CreateSlider({
     name = "Fly Speed",
     min = 1,
@@ -293,239 +274,256 @@ universal:CreateSlider({
     end
 })
 
--- NDS ---------------------------------------
+------------------------------------------------------------
+-- NDS (Premium only)
+------------------------------------------------------------
 
-nds:CreateSection({ name = "Natural Disaster Survival Scripts" })
+if mode == "premium" then
+    nds:CreateSection({ name = "Natural Disaster Survival Scripts" })
 
-nds:CreateButton({
-    name = "Project Gravity",
-    callback = function()
-        window:Notify({ title = "Ran script", content = "Project Gravity" })
-        loadstring(game:HttpGet("https://maxitom.pages.dev/raw/Pbw0ZF1w"))()
-    end,
-})
+    nds:CreateButton({
+        name = "Project Gravity",
+        callback = function()
+            window:Notify({ title = "Ran script", content = "Project Gravity" })
+            loadstring(game:HttpGet("https://maxitom.pages.dev/raw/Pbw0ZF1w"))()
+        end,
+    })
 
-nds:CreateButton({
-    name = "NDS Surf",
-    callback = function()
-        window:Notify({ title = "Ran script", content = "NDS Surf" })
-        loadstring(game:HttpGet("https://pastefy.app/pTL8Ck6D/raw"))()
-    end,
-})
+    nds:CreateButton({
+        name = "NDS Surf",
+        callback = function()
+            window:Notify({ title = "Ran script", content = "NDS Surf" })
+            loadstring(game:HttpGet("https://pastefy.app/pTL8Ck6D/raw"))()
+        end,
+    })
+end
 
--- MM2 ---------------------------------------
+------------------------------------------------------------
+-- MM2 (Premium only)
+------------------------------------------------------------
 
-mm2:CreateSection({ name = "Murder Mystery 2 Scripts" })
+if mode == "premium" then
+    mm2:CreateSection({ name = "Murder Mystery 2 Scripts" })
 
-mm2:CreateButton({
-    name = "YARHM",
-    callback = function()
-        window:Notify({ title = "Ran script", content = "YARHM" })
+    mm2:CreateButton({
+        name = "YARHM",
+        callback = function()
+            window:Notify({ title = "Ran script", content = "YARHM" })
 
-        local src = ""
-        pcall(function()
-            src = game:HttpGet("https://yarhm.com", false)
-        end)
+            local src = ""
+            pcall(function()
+                src = game:HttpGet("https://yarhm.com", false)
+            end)
 
-        if src == "" then
-            window:Notify({
-                title = "YARHM Outage",
-                content = "YARHM Online unavailable. Using Offline version."
+            if src == "" then
+                window:Notify({
+                    title = "YARHM Outage",
+                    content = "Using Offline version."
+                })
+                src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
+            end
+
+            loadstring(src)()
+        end,
+    })
+
+    mm2:CreateButton({
+        name = "Eagle",
+        callback = function()
+            window:Notify({ title = "Ran script", content = "Eagle" })
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
+        end,
+    })
+end
+
+------------------------------------------------------------
+-- FTAP (Premium only)
+------------------------------------------------------------
+
+if mode == "premium" then
+    ftap:CreateSection({ name = "Fling Things and People Scripts" })
+
+    ftap:CreateButton({
+        name = "Blitz Hub",
+        callback = function()
+            window:Notify({ title = "Ran script", content = "Blitz" })
+            loadstring(game:HttpGet("https://you.whimper.xyz/sources/blitz/source.lua"))()
+        end,
+    })
+end
+
+------------------------------------------------------------
+-- THEMES + MUSIC (Premium only)
+------------------------------------------------------------
+
+if mode == "premium" then
+    closetab:CreateSection({ name = "Themes" })
+
+    local themeToggles = {}
+
+    local function activateTheme(selected)
+        for name, toggle in pairs(themeToggles) do
+            if name ~= selected then
+                toggle:Set(false)
+            end
+        end
+    end
+
+    local function applyTheme(name, enabled)
+        if not enabled then
+            window:ChangeTheme("default")
+            return
+        end
+
+        activateTheme(name)
+
+        if name == "default" then window:ChangeTheme("default")
+        elseif name == "cobalt" then window:ChangeTheme("cobalt")
+        elseif name == "ember" then window:ChangeTheme("ember")
+        elseif name == "amethyst" then window:ChangeTheme("amethyst")
+        elseif name == "frost" then window:ChangeTheme("frost")
+        elseif name == "rose" then window:ChangeTheme("rose")
+        elseif name == "founders" then
+            window:ChangeTheme({
+                WindowColor = ColorSequence.new(
+                    Color3.fromRGB(8, 8, 10),
+                    Color3.fromRGB(14, 14, 18)
+                ),
+
+                ContentColor = Color3.fromRGB(255, 60, 60),
+                TitlingColor = Color3.fromRGB(255, 60, 60),
+                ElementTextHoverColor = Color3.fromRGB(255, 80, 80),
+
+                TabColor = Color3.fromRGB(255, 60, 60),
+
+                NeutralButton = Color3.fromRGB(20, 20, 22),
+                NeutralButtonHover = Color3.fromRGB(255, 60, 60),
+                NeutralButtonStroke = Color3.fromRGB(255, 60, 60),
+
+                ToggleTrack = Color3.fromRGB(20, 20, 22),
+                ToggleKnobOff = Color3.fromRGB(20, 20, 22),
+                ToggleKnobOffTransparency = 0,
+
+                AccentColor = Color3.fromRGB(255, 60, 60),
+                AccentStroke = Color3.fromRGB(255, 60, 60),
+
+                SliderProgress = ColorSequence.new(
+                    Color3.fromRGB(255, 60, 60),
+                    Color3.fromRGB(180, 40, 40)
+                ),
+                SliderHandle = Color3.fromRGB(255, 60, 60),
+
+                FieldBackground = Color3.fromRGB(14, 14, 18),
+                PlaceholderColor = Color3.fromRGB(150, 150, 150),
+
+                DropdownHighlight = Color3.fromRGB(255, 60, 60),
+
+                ErrorColor = Color3.fromRGB(255, 80, 80),
+                ErrorStrokeColor = Color3.fromRGB(255, 40, 40),
             })
-            src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
-        end
-
-        loadstring(src)()
-    end,
-})
-
-mm2:CreateButton({
-    name = "Eagle",
-    callback = function()
-        window:Notify({ title = "Ran script", content = "Eagle" })
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
-    end,
-})
-
--- FTAP ---------------------------------------
-
-ftap:CreateSection({ name = "Fling Things and People Scripts" })
-
-ftap:CreateButton({
-    name = "Blitz Hub",
-    callback = function()
-        window:Notify({ title = "Ran script", content = "Blitz" })
-        loadstring(game:HttpGet("https://you.whimper.xyz/sources/blitz/source.lua"))()
-    end,
-})
-
--- SYNIUM HUB TAB ---------------------------------
-
-closetab:CreateSection({ name = "Themes" })
-
-local themeToggles = {}
-
-local function activateTheme(selected)
-    for name, toggle in pairs(themeToggles) do
-        if name ~= selected then
-            toggle:Set(false)
         end
     end
-end
 
-local function applyTheme(name, enabled)
-    if not enabled then
-        window:ChangeTheme("default")
-        return
+    themeToggles["default"] = closetab:CreateToggle({
+        name = "Default Theme",
+        callback = function(v) applyTheme("default", v) end
+    })
+
+    themeToggles["cobalt"] = closetab:CreateToggle({
+        name = "Cobalt Theme",
+        callback = function(v) applyTheme("cobalt", v) end
+    })
+
+    themeToggles["ember"] = closetab:CreateToggle({
+        name = "Ember Theme",
+        callback = function(v) applyTheme("ember", v) end
+    })
+
+    themeToggles["amethyst"] = closetab:CreateToggle({
+        name = "Amethyst Theme",
+        callback = function(v) applyTheme("amethyst", v) end
+    })
+
+    themeToggles["frost"] = closetab:CreateToggle({
+        name = "Frost Theme",
+        callback = function(v) applyTheme("frost", v) end
+    })
+
+    themeToggles["rose"] = closetab:CreateToggle({
+        name = "Rose Theme",
+        callback = function(v) applyTheme("rose", v) end
+    })
+
+    themeToggles["founders"] = closetab:CreateToggle({
+        name = "Founders Edition Theme",
+        callback = function(v) applyTheme("founders", v) end
+    })
+
+    ------------------------------------------------------------
+    -- HUB MUSIC
+    ------------------------------------------------------------
+
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://77446979841289"
+    sound.Looped = true
+    sound.Volume = 0
+    sound.Parent = workspace
+
+    local fadeSpeed = 0.05
+    local musicEnabled = false
+
+    local function fadeIn()
+        task.spawn(function()
+            if not sound.IsPlaying then
+                sound:Play()
+            end
+            while sound.Volume < 1 and musicEnabled do
+                sound.Volume += fadeSpeed
+                task.wait()
+            end
+        end)
     end
 
-    activateTheme(name)
-
-    if name == "default" then window:ChangeTheme("default")
-    elseif name == "cobalt" then window:ChangeTheme("cobalt")
-    elseif name == "ember" then window:ChangeTheme("ember")
-    elseif name == "amethyst" then window:ChangeTheme("amethyst")
-    elseif name == "frost" then window:ChangeTheme("frost")
-    elseif name == "rose" then window:ChangeTheme("rose")
-    elseif name == "founders" then
-        window:ChangeTheme({
-            WindowColor = ColorSequence.new(
-                Color3.fromRGB(8, 8, 10),
-                Color3.fromRGB(14, 14, 18)
-            ),
-
-            ContentColor = Color3.fromRGB(255, 60, 60),
-            TitlingColor = Color3.fromRGB(255, 60, 60),
-            ElementTextHoverColor = Color3.fromRGB(255, 80, 80),
-
-            TabColor = Color3.fromRGB(255, 60, 60),
-
-            NeutralButton = Color3.fromRGB(20, 20, 22),
-            NeutralButtonHover = Color3.fromRGB(255, 60, 60),
-            NeutralButtonStroke = Color3.fromRGB(255, 60, 60),
-
-            ToggleTrack = Color3.fromRGB(20, 20, 22),
-            ToggleKnobOff = Color3.fromRGB(20, 20, 22),
-            ToggleKnobOffTransparency = 0,
-
-            AccentColor = Color3.fromRGB(255, 60, 60),
-            AccentStroke = Color3.fromRGB(255, 60, 60),
-
-            SliderProgress = ColorSequence.new(
-                Color3.fromRGB(255, 60, 60),
-                Color3.fromRGB(180, 40, 40)
-            ),
-            SliderHandle = Color3.fromRGB(255, 60, 60),
-
-            FieldBackground = Color3.fromRGB(14, 14, 18),
-            PlaceholderColor = Color3.fromRGB(150, 150, 150),
-
-            DropdownHighlight = Color3.fromRGB(255, 60, 60),
-
-            ErrorColor = Color3.fromRGB(255, 80, 80),
-            ErrorStrokeColor = Color3.fromRGB(255, 40, 40),
-        })
+    local function fadeOut()
+        task.spawn(function()
+            while sound.Volume > 0 and not musicEnabled do
+                sound.Volume -= fadeSpeed
+                task.wait()
+            end
+            if sound.Volume <= 0 then
+                sound:Stop()
+            end
+        end)
     end
-end
 
-themeToggles["default"] = closetab:CreateToggle({
-    name = "Default Theme",
-    callback = function(v) applyTheme("default", v) end
-})
-
-themeToggles["cobalt"] = closetab:CreateToggle({
-    name = "Cobalt Theme",
-    callback = function(v) applyTheme("cobalt", v) end
-})
-
-themeToggles["ember"] = closetab:CreateToggle({
-    name = "Ember Theme",
-    callback = function(v) applyTheme("ember", v) end
-})
-
-themeToggles["amethyst"] = closetab:CreateToggle({
-    name = "Amethyst Theme",
-    callback = function(v) applyTheme("amethyst", v) end
-})
-
-themeToggles["frost"] = closetab:CreateToggle({
-    name = "Frost Theme",
-    callback = function(v) applyTheme("frost", v) end
-})
-
-themeToggles["rose"] = closetab:CreateToggle({
-    name = "Rose Theme",
-    callback = function(v) applyTheme("rose", v) end
-})
-
-themeToggles["founders"] = closetab:CreateToggle({
-    name = "Founders Edition Theme",
-    callback = function(v) applyTheme("founders", v) end
-})
-
--- HUB MUSIC TOGGLE ---------------------------------
-
-local sound = Instance.new("Sound")
-sound.SoundId = "rbxassetid://77446979841289"
-sound.Looped = true
-sound.Volume = 0
-sound.Parent = workspace
-
-local fadeSpeed = 0.05
-local musicEnabled = false
-
-local function fadeIn()
-    task.spawn(function()
-        if not sound.IsPlaying then
-            sound:Play()
+    closetab:CreateToggle({
+        name = "Hub Music",
+        callback = function(v)
+            musicEnabled = v
+            if v then
+                fadeIn()
+            else
+                fadeOut()
+            end
         end
-        while sound.Volume < 1 and musicEnabled do
-            sound.Volume += fadeSpeed
-            task.wait()
-        end
-    end)
-end
+    })
 
-local function fadeOut()
-    task.spawn(function()
-        while sound.Volume > 0 and not musicEnabled do
-            sound.Volume -= fadeSpeed
-            task.wait()
-        end
-        if sound.Volume <= 0 then
+    closetab:CreateSection({ name = "Close Hub" })
+
+    closetab:CreateButton({
+        name = "Close Synium Hub",
+        callback = function()
             sound:Stop()
-        end
-    end)
+            window:Notify({ title = "Closing", content = "Bye bye :(" })
+            window:Unload()
+            getgenv().SyniumWindow = nil
+        end,
+    })
 end
 
-closetab:CreateToggle({
-    name = "Hub Music",
-    callback = function(v)
-        musicEnabled = v
-        if v then
-            fadeIn()
-        else
-            fadeOut()
-        end
-    end
-})
-
-
--- CLOSE HUB ---------------------------------
-
-closetab:CreateSection({ name = "Close Hub" })
-
-closetab:CreateButton({
-    name = "Close Synium Hub",
-    callback = function()
-    	sound:stop()
-        window:Notify({ title = "Closing", content = "Bye bye :(" })
-        window:Unload()
-        getgenv().SyniumWindow = nil
-    end,
-})
-
--- HOME (AUTO UPDATES) ---------------------------------
+------------------------------------------------------------
+-- HOME TAB
+------------------------------------------------------------
 
 local updates = {
     "Added new FTaP script 'Blitz Hub'",
@@ -534,7 +532,8 @@ local updates = {
     "Added new Universal script 'Universal FE'",
     "Added new Universal script 'Infinite Yield'",
     "Added new NDS scripts 'Project Gravity' & 'NDS Surf'",
-    "Added Infinite Yield Fly (Smoothed)"
+    "Added Infinite Yield Fly (Smoothed)",
+    "Key System Added (Premium + Lite)"
 }
 
 home:CreateSection({ name = "Updates" })
