@@ -47,7 +47,6 @@ end
 -- Store previous window globally
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
-    fadeOut()
 end
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
