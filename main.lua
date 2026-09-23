@@ -69,13 +69,6 @@ local window = Rayfield:CreateWindow({
 
 getgenv().SyniumWindow = window
 
--- PREMIUM CHECK
-if not isAllowed(whitelist.premium) then
-    if getgenv().SyniumWindow then
-        getgenv().SyniumWindow:Unload()
-    end
-    return
-end
 
 
 local Players = game:GetService("Players")
