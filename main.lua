@@ -1,3 +1,49 @@
+-- PLAYER WHITELIST SYSTEM ---------------------------------
+
+local function loadPlayersYML()
+    local raw = ""
+
+    -- Try local file first
+    pcall(function()
+        raw = readfile("players.yml")
+    end)
+
+    -- If not found, load from GitHub
+    if raw == "" then
+        raw = game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/players.yml")
+    end
+
+    local sections = { lite = {}, premium = {} }
+    local current = nil
+
+    for line in raw:gmatch("[^\r\n]+") do
+        local section = line:match("^(%w+):")
+        if section and sections[section] then
+            current = section
+        else
+            local name = line:match("%-%s*(.+)")
+            if name and current then
+                table.insert(sections[current], name)
+            end
+        end
+    end
+
+    return sections
+end
+
+local whitelist = loadPlayersYML()
+local localName = game.Players.LocalPlayer.Name
+
+local function isAllowed(list)
+    for _, v in ipairs(list) do
+        if v == localName then
+            return true
+        end
+    end
+    return false
+end
+
+
 -- Store previous window globally
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()

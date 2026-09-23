@@ -1,7 +1,55 @@
--- Synium Hub Lite
+-- Synium Hub Lite + Player Whitelist
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
 end
+
+-- PLAYER WHITELIST SYSTEM ---------------------------------
+
+local function loadPlayersYML()
+    local raw = ""
+
+    -- Try local file first
+    pcall(function()
+        raw = readfile("players.yml")
+    end)
+
+    -- If not found, load from GitHub
+    if raw == "" then
+        raw = game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/players.yml")
+    end
+
+    local sections = { lite = {}, premium = {} }
+    local current = nil
+
+    for line in raw:gmatch("[^\r\n]+") do
+        local section = line:match("^(%w+):")
+        if section and sections[section] then
+            current = section
+        else
+            local name = line:match("%-%s*(.+)")
+            if name and current then
+                table.insert(sections[current], name)
+            end
+        end
+    end
+
+    return sections
+end
+
+local whitelist = loadPlayersYML()
+local localName = game.Players.LocalPlayer.Name
+
+local function isAllowed(list)
+    for _, v in ipairs(list) do
+        if v == localName then
+            return true
+        end
+    end
+    return false
+end
+
+
+-- RAYFIELD ---------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
@@ -18,13 +66,6 @@ local window = Rayfield:CreateWindow({
 })
 
 getgenv().SyniumWindow = window
-
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-
-local function getRoot(char)
-    return char:FindFirstChild("HumanoidRootPart")
-end
 
 -- TABS ---------------------------------
 
@@ -118,14 +159,12 @@ close:CreateButton({
     end,
 })
 
--- HOME (UPDATES) ---------------------------------
+-- HOME ---------------------------------
 
 local updates = {
     "Lite version created",
-    "Removed themes",
-    "Removed hub music",
-    "Removed extra scripts",
-    "Cleaned UI"
+    "Whitelist system added",
+    "Hub unloads if player not in players.yml"
 }
 
 home:CreateSection({ name = "Updates" })
