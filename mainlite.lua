@@ -39,6 +39,14 @@ local window = Rayfield:CreateWindow({
     }
 })
 
+local s = Instance.new("Sound")
+s.SoundId = "rbxassetid://3722232094"
+s.Volume = 1
+s.Looped = false
+s.Parent = workspace
+s:Play()
+
+
 getgenv().SyniumWindow = window
 
 ------------------------------------------------------------
@@ -152,7 +160,9 @@ home:CreateButton({
     name = "Close Synium Hub",
     callback = function()
         sound:Stop()
-        window:Notify({ title = "Closing", content = "Bye bye :(" })
+        s:Play()
+        window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
+        wait:(3)
         window:Unload()
         getgenv().SyniumWindow = nil
     end,
