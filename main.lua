@@ -263,7 +263,7 @@ nds:CreateButton({
     name = "Project Gravity",
     callback = function()
         window:Notify({ title = "Ran script", content = "Project Gravity" })
-        loadstring(game:HttpGet("https://maxitom.pages.dev/raw/Pbw0ZF1w"))()
+        loadstring(game:HttpGet("loadstring(game:HttpGet("https://rawscripts.net/raw/Natural-Disaster-Survival-Project-Gravity-NDS-239526"))()"))()
     end,
 })
 
