@@ -139,3 +139,21 @@ mm2:CreateButton({
         loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
     end,
 })
+
+
+
+home:CreateText({
+    name = "haha loser",
+    text = "look at ts guy using lite LMAOO",
+})
+
+
+home:CreateButton({
+    name = "Close Synium Hub",
+    callback = function()
+        sound:Stop()
+        window:Notify({ title = "Closing", content = "Bye bye :(" })
+        window:Unload()
+        getgenv().SyniumWindow = nil
+    end,
+})
