@@ -41,8 +41,6 @@ local window = Rayfield:CreateWindow({
     }
 })
 
-
-
 getgenv().SyniumWindow = window
 
 ------------------------------------------------------------
