@@ -41,6 +41,7 @@ local window = Rayfield:CreateWindow({
     }
 })
 
+local azure = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/azure.lua"))()
 
 
 getgenv().SyniumWindow = window
@@ -332,7 +333,6 @@ ftap:CreateButton({
 
 closetab:CreateSection({ name = "Themes" })
 
-
 local themeToggles = {}
 
 local function activateTheme(selected)
@@ -357,38 +357,82 @@ local function applyTheme(name, enabled)
     elseif name == "amethyst" then window:ChangeTheme("amethyst")
     elseif name == "frost" then window:ChangeTheme("frost")
     elseif name == "rose" then window:ChangeTheme("rose")
+    elseif name == "azure" then window:ChangeTheme("azure")
     elseif name == "founders" then
         window:ChangeTheme({
             WindowColor = ColorSequence.new(
                 Color3.fromRGB(8, 8, 10),
                 Color3.fromRGB(14, 14, 18)
             ),
+
             ContentColor = Color3.fromRGB(255, 60, 60),
             TitlingColor = Color3.fromRGB(255, 60, 60),
             ElementTextHoverColor = Color3.fromRGB(255, 80, 80),
+
             TabColor = Color3.fromRGB(255, 60, 60),
+
             NeutralButton = Color3.fromRGB(20, 20, 22),
             NeutralButtonHover = Color3.fromRGB(255, 60, 60),
             NeutralButtonStroke = Color3.fromRGB(255, 60, 60),
+
             ToggleTrack = Color3.fromRGB(20, 20, 22),
             ToggleKnobOff = Color3.fromRGB(20, 20, 22),
             ToggleKnobOffTransparency = 0,
+
             AccentColor = Color3.fromRGB(255, 60, 60),
             AccentStroke = Color3.fromRGB(255, 60, 60),
+
             SliderProgress = ColorSequence.new(
                 Color3.fromRGB(255, 60, 60),
                 Color3.fromRGB(180, 40, 40)
             ),
             SliderHandle = Color3.fromRGB(255, 60, 60),
+
             FieldBackground = Color3.fromRGB(14, 14, 18),
             PlaceholderColor = Color3.fromRGB(150, 150, 150),
+
             DropdownHighlight = Color3.fromRGB(255, 60, 60),
+
             ErrorColor = Color3.fromRGB(255, 80, 80),
             ErrorStrokeColor = Color3.fromRGB(255, 40, 40),
         })
     end
 end
 
+themeToggles["default"] = closetab:CreateToggle({
+    name = "Default Theme",
+    callback = function(v) applyTheme("default", v) end
+})
+
+themeToggles["cobalt"] = closetab:CreateToggle({
+    name = "Cobalt Theme",
+    callback = function(v) applyTheme("cobalt", v) end
+})
+
+themeToggles["ember"] = closetab:CreateToggle({
+    name = "Ember Theme",
+    callback = function(v) applyTheme("ember", v) end
+})
+
+themeToggles["amethyst"] = closetab:CreateToggle({
+    name = "Amethyst Theme",
+    callback = function(v) applyTheme("amethyst", v) end
+})
+
+themeToggles["frost"] = closetab:CreateToggle({
+    name = "Frost Theme",
+    callback = function(v) applyTheme("frost", v) end
+})
+
+themeToggles["rose"] = closetab:CreateToggle({
+    name = "Rose Theme",
+    callback = function(v) applyTheme("rose", v) end
+})
+
+themeToggles["founders"] = closetab:CreateToggle({
+    name = "Founders Edition Theme",
+    callback = function(v) applyTheme("founders", v) end
+})
 
 ------------------------------------------------------------
 -- HUB MUSIC
