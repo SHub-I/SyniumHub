@@ -358,7 +358,7 @@ local function applyTheme(name, enabled)
     elseif name == "amethyst" then window:ChangeTheme("amethyst")
     elseif name == "frost" then window:ChangeTheme("frost")
     elseif name == "rose" then window:ChangeTheme("rose")
-    elseif name == "azure" then window:ChangeTheme(azure) -- ✔ FIXED
+    elseif name == "azure" then window:ChangeTheme(azure)
     elseif name == "founders" then
         window:ChangeTheme({
             WindowColor = ColorSequence.new(
