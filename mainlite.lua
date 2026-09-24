@@ -156,13 +156,18 @@ home:CreateText({
 })
 
 
+local s = Instance.new("Sound")
+s.SoundId = "rbxassetid://3722232094"
+s.Volume = 1
+s.Parent = workspace
+
 home:CreateButton({
     name = "Close Synium Hub",
     callback = function()
         sound:Stop()
         s:Play()
         window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
-        wait(3)
+        task.wait(3)
         SyniumWindow:Unload()
         getgenv().SyniumWindow = nil
     end,
