@@ -22,20 +22,20 @@ if getgenv().SyniumWindow then
 end
 
 ------------------------------------------------------------
--- RAYFIELD WINDOW (Lite)
+-- RAYFIELD WINDOW (Lite+)
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
-    name = "Synium Hub (Lite)",
+    name = "Synium Hub (Lite+)",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
 
     configuration = {
         autoSave = true,
         autoLoad = true,
-        fileName = "SyniumHubConfig_Lite"
+        fileName = "SyniumHubConfig_LitePlus"
     }
 })
 
@@ -48,7 +48,6 @@ getgenv().SyniumWindow = window
 local closeSound = Instance.new("Sound")
 closeSound.SoundId = "rbxassetid://3722232094"
 closeSound.Volume = 1
-closeSound.Looped = false
 closeSound.Parent = workspace
 
 ------------------------------------------------------------
@@ -105,12 +104,12 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------------------
--- TABS (Lite: only essentials)
+-- TABS (Lite+)
 ------------------------------------------------------------
 
-local home = window:CreateTab({ name = "Home" })
+local home      = window:CreateTab({ name = "Home" })
 local universal = window:CreateTab({ name = "Universal Scripts" })
-local mm2 = window:CreateTab({ name = "Murder Mystery 2" })
+local mm2       = window:CreateTab({ name = "Murder Mystery 2" })
 
 ------------------------------------------------------------
 -- HOME TAB
@@ -121,26 +120,13 @@ home:CreateText({
     text = "look at this guy using lite LMAOO",
 })
 
--- Divider (correct parent!)
-local divider = Instance.new("Frame")
-divider.Size = UDim2.new(1, 0, 0, 6)
-divider.Position = UDim2.new(0, 0, 0, 70)
-divider.BackgroundColor3 = Color3.fromRGB(115, 115, 115)
-divider.BorderSizePixel = 0
-divider.ZIndex = 10
-divider.Parent = home.Container
-
-local dividerCorner = Instance.new("UICorner")
-dividerCorner.CornerRadius = UDim.new(0, 3)
-dividerCorner.Parent = divider
-
 home:CreateButton({
     name = "Close Synium Hub",
     callback = function()
         closeSound:Play()
         window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
         task.wait(3)
-        SyniumWindow:Unload()
+        getgenv().SyniumWindow:Unload()
         getgenv().SyniumWindow = nil
     end,
 })
@@ -167,6 +153,7 @@ universal:CreateButton({
     end,
 })
 
+-- YARHM (sandboxed so Lite doesn't crash)
 universal:CreateButton({
     name = "YARHM",
     callback = function()
@@ -185,12 +172,16 @@ universal:CreateButton({
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
 
-        loadstring(src)()
+        task.spawn(function()
+            pcall(function()
+                loadstring(src)()
+            end)
+        end)
     end,
 })
 
 ------------------------------------------------------------
--- MM2 TAB
+-- MM2 TAB (sandboxed)
 ------------------------------------------------------------
 
 mm2:CreateSection({ name = "Murder Mystery 2 Scripts" })
@@ -213,7 +204,11 @@ mm2:CreateButton({
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
 
-        loadstring(src)()
+        task.spawn(function()
+            pcall(function()
+                loadstring(src)()
+            end)
+        end)
     end,
 })
 
@@ -221,6 +216,10 @@ mm2:CreateButton({
     name = "Eagle",
     callback = function()
         window:Notify({ title = "Ran script", content = "Eagle" })
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
+        task.spawn(function()
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
+            end)
+        end)
     end,
 })
