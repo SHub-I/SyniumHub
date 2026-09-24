@@ -162,8 +162,8 @@ home:CreateButton({
         sound:Stop()
         s:Play()
         window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
-        wait:(3)
-        window:Unload()
+        wait(3)
+        SyniumWindow:Unload()
         getgenv().SyniumWindow = nil
     end,
 })
