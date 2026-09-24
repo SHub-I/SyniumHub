@@ -17,8 +17,8 @@ end
 -- UNLOAD OLD WINDOW
 ------------------------------------------------------------
 
-if gui and typeof(gui) == "Instance" and gui.Destroy then
-    gui:Destroy()
+if getgenv().SyniumWindow then
+    getgenv().SyniumWindow:Unload()
 end
 
 ------------------------------------------------------------
