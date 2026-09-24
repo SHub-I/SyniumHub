@@ -22,33 +22,35 @@ if getgenv().SyniumWindow then
 end
 
 ------------------------------------------------------------
--- RAYFIELD WINDOW (Lite+)
+-- RAYFIELD WINDOW (Lite)
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local window = Rayfield:CreateWindow({
-    name = "Synium Hub (Lite+)",
+    name = "Synium Hub (Lite)",
     subtitle = "Rayfield Gen2",
     sidebarLayout = true,
 
     configuration = {
         autoSave = true,
         autoLoad = true,
-        fileName = "SyniumHubConfig_LitePlus"
+        fileName = "SyniumHubConfig_Lite"
     }
 })
 
 getgenv().SyniumWindow = window
 
 ------------------------------------------------------------
--- CLOSE SOUND
+-- CLOSE SOUND (only one definition)
 ------------------------------------------------------------
 
-local closeSound = Instance.new("Sound")
-closeSound.SoundId = "rbxassetid://3722232094"
-closeSound.Volume = 1
-closeSound.Parent = workspace
+local s = Instance.new("Sound")
+s.SoundId = "rbxassetid://3722232094"
+s.Volume = 1
+s.Looped = false
+s.Parent = workspace
+s:Play()
 
 ------------------------------------------------------------
 -- SERVICES
@@ -56,80 +58,18 @@ closeSound.Parent = workspace
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+
+local function getRoot(char)
+    return char:FindFirstChild("HumanoidRootPart")
+end
 
 ------------------------------------------------------------
--- ULTRA-SMOOTH DRAGGING
+-- TABS (Lite: only essentials)
 ------------------------------------------------------------
 
-local dragging = false
-local dragStart
-local startPos
-local followSpeed = 0.18
-local targetPos = window.Position
-
-window.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = window.Position
-    end
-end)
-
-window.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        targetPos = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    window.Position = UDim2.new(
-        window.Position.X.Scale,
-        window.Position.X.Offset + (targetPos.X.Offset - window.Position.X.Offset) * followSpeed,
-        window.Position.Y.Scale,
-        window.Position.Y.Offset + (targetPos.Y.Offset - window.Position.Y.Offset) * followSpeed
-    )
-end)
-
-------------------------------------------------------------
--- TABS (Lite+)
-------------------------------------------------------------
-
-local home      = window:CreateTab({ name = "Home" })
+local home = window:CreateTab({ name = "Home" })
 local universal = window:CreateTab({ name = "Universal Scripts" })
-local mm2       = window:CreateTab({ name = "Murder Mystery 2" })
-
-------------------------------------------------------------
--- HOME TAB
-------------------------------------------------------------
-
-home:CreateText({
-    name = "haha loser",
-    text = "look at this guy using lite LMAOO",
-})
-
-home:CreateButton({
-    name = "Close Synium Hub",
-    callback = function()
-        closeSound:Play()
-        window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
-        task.wait(3)
-        getgenv().SyniumWindow:Unload()
-        getgenv().SyniumWindow = nil
-    end,
-})
+local mm2 = window:CreateTab({ name = "Murder Mystery 2" })
 
 ------------------------------------------------------------
 -- UNIVERSAL TAB
@@ -153,7 +93,6 @@ universal:CreateButton({
     end,
 })
 
--- YARHM (sandboxed so Lite doesn't crash)
 universal:CreateButton({
     name = "YARHM",
     callback = function()
@@ -172,16 +111,14 @@ universal:CreateButton({
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
 
-        task.spawn(function()
-            pcall(function()
-                loadstring(src)()
-            end)
+        pcall(function()
+            loadstring(src)()
         end)
     end,
 })
 
 ------------------------------------------------------------
--- MM2 TAB (sandboxed)
+-- MM2 TAB
 ------------------------------------------------------------
 
 mm2:CreateSection({ name = "Murder Mystery 2 Scripts" })
@@ -204,10 +141,8 @@ mm2:CreateButton({
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
 
-        task.spawn(function()
-            pcall(function()
-                loadstring(src)()
-            end)
+        pcall(function()
+            loadstring(src)()
         end)
     end,
 })
@@ -216,10 +151,28 @@ mm2:CreateButton({
     name = "Eagle",
     callback = function()
         window:Notify({ title = "Ran script", content = "Eagle" })
-        task.spawn(function()
-            pcall(function()
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
-            end)
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
         end)
+    end,
+})
+
+------------------------------------------------------------
+-- HOME TAB
+------------------------------------------------------------
+
+home:CreateText({
+    name = "haha loser",
+    text = "look at ts guy using lite LMAOO",
+})
+
+home:CreateButton({
+    name = "Close Synium Hub",
+    callback = function()
+        s:Play()
+        window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
+        task.wait(3)
+        getgenv().SyniumWindow:Unload()
+        getgenv().SyniumWindow = nil
     end,
 })
