@@ -42,26 +42,12 @@ local window = Rayfield:CreateWindow({
 getgenv().SyniumWindow = window
 
 ------------------------------------------------------------
--- CLOSE SOUND (only one definition)
-------------------------------------------------------------
-
-local s = Instance.new("Sound")
-s.SoundId = "rbxassetid://3722232094"
-s.Volume = 1
-s.Looped = false
-s.Parent = workspace
-s:Play()
-
-------------------------------------------------------------
 -- SERVICES
 ------------------------------------------------------------
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-
-local function getRoot(char)
-    return char:FindFirstChild("HumanoidRootPart")
-end
+local RunService = game:GetService("RunService")
 
 ------------------------------------------------------------
 -- TABS (Lite: only essentials)
@@ -70,6 +56,16 @@ end
 local home = window:CreateTab({ name = "Home" })
 local universal = window:CreateTab({ name = "Universal Scripts" })
 local mm2 = window:CreateTab({ name = "Murder Mystery 2" })
+
+------------------------------------------------------------
+-- CLOSE SOUND (single definition)
+------------------------------------------------------------
+
+local closeSound = Instance.new("Sound")
+closeSound.SoundId = "rbxassetid://3722232094"
+closeSound.Volume = 1
+closeSound.Looped = false
+closeSound.Parent = workspace
 
 ------------------------------------------------------------
 -- UNIVERSAL TAB
@@ -111,8 +107,11 @@ universal:CreateButton({
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
 
-        pcall(function()
-            loadstring(src)()
+        -- sandboxed execution to avoid runtime errors breaking the UI
+        task.spawn(function()
+            pcall(function()
+                loadstring(src)()
+            end)
         end)
     end,
 })
@@ -141,8 +140,10 @@ mm2:CreateButton({
             src = game:HttpGet("https://raw.githubusercontent.com/Joystickplays/psychic-octo-invention/main/source/yarhm/1.21/yarhm.lua", false)
         end
 
-        pcall(function()
-            loadstring(src)()
+        task.spawn(function()
+            pcall(function()
+                loadstring(src)()
+            end)
         end)
     end,
 })
@@ -151,8 +152,10 @@ mm2:CreateButton({
     name = "Eagle",
     callback = function()
         window:Notify({ title = "Ran script", content = "Eagle" })
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
+        task.spawn(function()
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/EagleRobloxScript/Eagle/refs/heads/main/Eagle.lua"))()
+            end)
         end)
     end,
 })
@@ -169,10 +172,91 @@ home:CreateText({
 home:CreateButton({
     name = "Close Synium Hub",
     callback = function()
-        s:Play()
+        -- safe close: use the single defined sound and the global window reference
+        if closeSound then
+            closeSound:Play()
+        end
+
         window:Notify({ title = "Closing", content = "cya lite loser LMAO" })
         task.wait(3)
-        getgenv().SyniumWindow:Unload()
-        getgenv().SyniumWindow = nil
+
+        if getgenv().SyniumWindow then
+            getgenv().SyniumWindow:Unload()
+            getgenv().SyniumWindow = nil
+        end
     end,
 })
+
+------------------------------------------------------------
+-- ULTRA-SMOOTH DRAGGING (safe hookup)
+-- Hook events only after window and tabs are created and guard against nil
+------------------------------------------------------------
+
+local dragging = false
+local dragStart
+local startPos
+local followSpeed = 0.18
+local targetPos = window.Position or UDim2.new(0.5, 0, 0.5, 0)
+
+-- helper to safely connect signals without indexing nil
+local function safeConnect(signal, fn)
+    if not signal then
+        return nil
+    end
+    local ok, conn = pcall(function() return signal:Connect(fn) end)
+    if ok then
+        return conn
+    end
+    return nil
+end
+
+-- Connect window input signals safely (some Rayfield builds expose these; guard against nil)
+local winInputBeganConn = safeConnect(window.InputBegan, function(input)
+    if input and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = window.Position
+    end
+end)
+
+local winInputEndedConn = safeConnect(window.InputEnded, function(input)
+    if input and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Connect UserInputService and RenderStepped (these are engine services; still use safeConnect for consistency)
+local uisChangedConn = safeConnect(UserInputService.InputChanged, function(input)
+    if dragging and input and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        targetPos = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local renderConn = safeConnect(RunService.RenderStepped, function()
+    -- ensure window.Position and targetPos are valid UDim2s
+    if not window or not window.Position or not targetPos then return end
+    local curXOff = window.Position.X.Offset
+    local curYOff = window.Position.Y.Offset
+    local newX = curXOff + (targetPos.X.Offset - curXOff) * followSpeed
+    local newY = curYOff + (targetPos.Y.Offset - curYOff) * followSpeed
+    window.Position = UDim2.new(
+        window.Position.X.Scale,
+        newX,
+        window.Position.Y.Scale,
+        newY
+    )
+end)
+
+-- keep references so they don't get garbage collected accidentally
+local _conns = {
+    winInputBeganConn,
+    winInputEndedConn,
+    uisChangedConn,
+    renderConn
+}
