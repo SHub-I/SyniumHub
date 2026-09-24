@@ -245,7 +245,6 @@ universal:CreateToggle({
 universal:CreateSlider({
     name = "Fly Speed",
     range = { 0, 5 }
-    value = 2
     callback = function(v)
         iyflyspeed = v
         vehicleflyspeed = v
