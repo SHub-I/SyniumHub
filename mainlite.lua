@@ -121,14 +121,14 @@ home:CreateText({
     text = "look at this guy using lite LMAOO",
 })
 
--- Divider
+-- Divider (correct parent!)
 local divider = Instance.new("Frame")
 divider.Size = UDim2.new(1, 0, 0, 6)
 divider.Position = UDim2.new(0, 0, 0, 70)
 divider.BackgroundColor3 = Color3.fromRGB(115, 115, 115)
 divider.BorderSizePixel = 0
 divider.ZIndex = 10
-divider.Parent = home.TabContent
+divider.Parent = home.Container
 
 local dividerCorner = Instance.new("UICorner")
 dividerCorner.CornerRadius = UDim.new(0, 3)
