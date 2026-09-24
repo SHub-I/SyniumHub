@@ -41,6 +41,9 @@ local window = Rayfield:CreateWindow({
     }
 })
 
+local azure = loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/main/azure.lua"))()
+
+
 getgenv().SyniumWindow = window
 
 ------------------------------------------------------------
@@ -354,6 +357,7 @@ local function applyTheme(name, enabled)
     elseif name == "amethyst" then window:ChangeTheme("amethyst")
     elseif name == "frost" then window:ChangeTheme("frost")
     elseif name == "rose" then window:ChangeTheme("rose")
+    elseif name == "azure" then window:ChangeTheme("azure")
     elseif name == "founders" then
         window:ChangeTheme({
             WindowColor = ColorSequence.new(
@@ -423,6 +427,11 @@ themeToggles["frost"] = closetab:CreateToggle({
 themeToggles["rose"] = closetab:CreateToggle({
     name = "Rose Theme",
     callback = function(v) applyTheme("rose", v) end
+})
+
+themeToggles["azure"] = closetab:CreateToggle({
+    name = "Azure Theme",
+    callback = function(v) applyTheme("azure", v) end
 })
 
 themeToggles["founders"] = closetab:CreateToggle({
