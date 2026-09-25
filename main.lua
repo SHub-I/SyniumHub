@@ -492,22 +492,33 @@ themeToggles["founders"] = closetab:CreateToggle({
 })
 
 ------------------------------------------------------------
--- AUTO‑APPLY THEME ON HUB LOAD (WORKING VERSION)
+-- AUTO‑APPLY THEME ON HUB LOAD (WORKING WITH YOUR CONFIG)
 ------------------------------------------------------------
 
 task.spawn(function()
     local cfg = Rayfield.Configuration
     if not cfg then return end
 
-    for name, toggle in pairs(themeToggles) do
-        -- Rayfield stores toggle values under their element ID
-        local id = toggle.InternalId
-        if id and cfg[id] == true then
-            applyTheme(name, true)
+    -- Map Rayfield config keys to your theme names
+    local map = {
+        DefaultTheme = "default",
+        CobaltTheme = "cobalt",
+        EmberTheme = "ember",
+        AmethystTheme = "amethyst",
+        FrostTheme = "frost",
+        RoseTheme = "rose",
+        FoundersEditionTheme = "founders",
+        AzureTheme = "azure", -- only if you ever add it back
+    }
+
+    for cfgKey, themeName in pairs(map) do
+        if cfg[cfgKey] == true then
+            applyTheme(themeName, true)
             break
         end
     end
 end)
+
 
 
 
