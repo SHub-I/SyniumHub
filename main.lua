@@ -22,7 +22,6 @@ end
 
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
-    sound.stop
 end
 
 ------------------------------------------------------------
@@ -511,6 +510,21 @@ end)
 ------------------------------------------------------------
 
 local sound = Instance.new("Sound")
+------------------------------------------------------------
+-- STOP MUSIC IF ANOTHER HUB INSTANCE WAS OPEN
+------------------------------------------------------------
+
+if getgenv().SyniumMusicSound then
+    -- Stop old instance's music immediately
+    pcall(function()
+        getgenv().SyniumMusicSound.Volume = 0
+        getgenv().SyniumMusicSound:Stop()
+    end)
+end
+
+-- Register this hub's music instance globally
+getgenv().SyniumMusicSound = sound
+
 sound.SoundId = "rbxassetid://77446979841289"
 sound.Looped = true
 sound.Volume = 0
