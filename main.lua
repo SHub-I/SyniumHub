@@ -492,6 +492,20 @@ themeToggles["founders"] = closetab:CreateToggle({
 })
 
 ------------------------------------------------------------
+-- AUTO‑APPLY THEME ON HUB LOAD
+------------------------------------------------------------
+
+task.spawn(function()
+    for name, toggle in pairs(themeToggles) do
+        -- Rayfield Gen2 toggles store their state in toggle.CurrentValue
+        if toggle.CurrentValue == true then
+            applyTheme(name, true)
+            break
+        end
+    end
+end)
+
+------------------------------------------------------------
 -- HUB MUSIC
 ------------------------------------------------------------
 
