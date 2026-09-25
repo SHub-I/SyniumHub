@@ -22,6 +22,7 @@ end
 
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
+    sound.stop
 end
 
 ------------------------------------------------------------
