@@ -3,22 +3,6 @@
 -- KEYSYSTEM PROTECTION
 ------------------------------------------------------------
 
-if not getgenv().SyniumKeySystemLoaded then
-    game.Players.LocalPlayer:Kick("Please run keysystem.lua first.")
-    return
-end
-
-local mode = getgenv().SyniumMode
-if not mode then
-    game.Players.LocalPlayer:Kick("Key system failed to set mode.")
-    return
-end
-
-
-
-
-
-
 if getgenv().SyniumWindow then
     getgenv().SyniumWindow:Unload()
 end
@@ -314,7 +298,6 @@ mm2:CreateButton({
 ------------------------------------------------------------
 -- FTAP
 ------------------------------------------------------------
-
 ftap:CreateSection({ name = "Fling Things and People Scripts" })
 
 ftap:CreateButton({
