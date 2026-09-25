@@ -546,8 +546,8 @@ closetab:CreateButton({
     name = "Close Synium Hub",
     callback = function()
         sound:Stop()
-        wait(3)
         window:Notify({ title = "Closing", content = "Bye bye :(" })
+        wait(3)
         window:Unload()
         getgenv().SyniumWindow = nil
     end,
