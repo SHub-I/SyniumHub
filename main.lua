@@ -492,18 +492,23 @@ themeToggles["founders"] = closetab:CreateToggle({
 })
 
 ------------------------------------------------------------
--- AUTO‑APPLY THEME ON HUB LOAD
+-- AUTO‑APPLY THEME ON HUB LOAD (WORKING VERSION)
 ------------------------------------------------------------
 
 task.spawn(function()
+    local cfg = Rayfield.Configuration
+    if not cfg then return end
+
     for name, toggle in pairs(themeToggles) do
-        -- Rayfield Gen2 toggles store their state in toggle.CurrentValue
-        if toggle.CurrentValue == true then
+        -- Rayfield stores toggle values under their element ID
+        local id = toggle.InternalId
+        if id and cfg[id] == true then
             applyTheme(name, true)
             break
         end
     end
 end)
+
 
 
 ------------------------------------------------------------
