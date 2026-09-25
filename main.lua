@@ -29,6 +29,18 @@ end
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
+
+local window = Rayfield:CreateWindow({
+    name = "Synium Hub",
+    subtitle = "Rayfield Gen2",
+    sidebarLayout = true,
+
+    configuration = {
+        autoSave = true,
+        autoLoad = true,
+        fileName = "SyniumHubConfig"
+    }
+})
 ------------------------------------------------------------
 -- AUTO‑APPLY THEME ON HUB LOAD
 ------------------------------------------------------------
@@ -42,18 +54,6 @@ task.spawn(function()
         end
     end
 end)
-
-local window = Rayfield:CreateWindow({
-    name = "Synium Hub",
-    subtitle = "Rayfield Gen2",
-    sidebarLayout = true,
-
-    configuration = {
-        autoSave = true,
-        autoLoad = true,
-        fileName = "SyniumHubConfig"
-    }
-})
 
 getgenv().SyniumWindow = window
 
