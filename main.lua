@@ -1,5 +1,30 @@
 
+------------------------------------------------------------
+-- KEYSYSTEM PROTECTION
+------------------------------------------------------------
 
+if not getgenv().SyniumKeySystemLoaded then
+    game.Players.LocalPlayer:Kick("Please run keysystem.lua first.")
+    return
+end
+
+local mode = getgenv().SyniumMode
+if not mode then
+    game.Players.LocalPlayer:Kick("Key system failed to set mode.")
+    return
+end
+
+getgenv().SyniumKeySystemLoaded = true
+getgenv().SyniumMode = "debug"
+
+
+
+
+
+
+if getgenv().SyniumWindow then
+    getgenv().SyniumWindow:Unload()
+end
 
 ------------------------------------------------------------
 -- RAYFIELD WINDOW
@@ -19,6 +44,7 @@ local window = Rayfield:CreateWindow({
     }
 })
 
+getgenv().SyniumWindow = window
 
 ------------------------------------------------------------
 -- SERVICES
