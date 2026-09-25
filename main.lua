@@ -31,6 +31,8 @@ end
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
+print("Rayfield:", tostring(Rayfield), type(Rayfield))
+
 
 local window = Rayfield:CreateWindow({
     name = "Synium Hub",
