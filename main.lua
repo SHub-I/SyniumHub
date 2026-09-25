@@ -1,3 +1,6 @@
+-- Quick debug defaults (temporary)
+getgenv().SyniumKeySystemLoaded = getgenv().SyniumKeySystemLoaded or true
+getgenv().SyniumMode = getgenv().SyniumMode or "debug"
 
 ------------------------------------------------------------
 -- KEYSYSTEM PROTECTION
@@ -14,9 +17,6 @@ if not mode then
     return
 end
 
-getgenv().SyniumKeySystemLoaded = true
-getgenv().SyniumMode = "debug"
-
 
 
 
@@ -31,8 +31,6 @@ end
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-print("Rayfield:", tostring(Rayfield), type(Rayfield))
-
 
 local window = Rayfield:CreateWindow({
     name = "Synium Hub",
