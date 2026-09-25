@@ -14,6 +14,9 @@ if not mode then
     return
 end
 
+getgenv().SyniumKeySystemLoaded = true
+getgenv().SyniumMode = "debug"
+
 
 
 
