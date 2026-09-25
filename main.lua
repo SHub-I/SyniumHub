@@ -22,15 +22,19 @@ end
 
 
 
-if getgenv().SyniumWindow then
-    getgenv().SyniumWindow:Unload()
+local w = getgenv().SyniumWindow
+if w and type(w.Unload) == "function" then
+    w:Unload()
 end
+
 
 ------------------------------------------------------------
 -- RAYFIELD WINDOW
 ------------------------------------------------------------
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
+print("Rayfield:", tostring(Rayfield), type(Rayfield))
+
 
 local window = Rayfield:CreateWindow({
     name = "Synium Hub",
