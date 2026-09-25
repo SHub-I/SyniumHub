@@ -41,19 +41,6 @@ local window = Rayfield:CreateWindow({
         fileName = "SyniumHubConfig"
     }
 })
-------------------------------------------------------------
--- AUTO‑APPLY THEME ON HUB LOAD
-------------------------------------------------------------
-
-task.spawn(function()
-    for name, toggle in pairs(themeToggles) do
-        -- Rayfield Gen2 toggles store their state in toggle.CurrentValue
-        if toggle.CurrentValue == true then
-            applyTheme(name, true)
-            break
-        end
-    end
-end)
 
 getgenv().SyniumWindow = window
 
@@ -517,6 +504,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 ------------------------------------------------------------
 -- HUB MUSIC
