@@ -338,10 +338,7 @@ mm2:CreateButton({
         coinEspEnabled = not coinEspEnabled
 
         if coinEspEnabled then
-            window:Notify({
-                title = "Coin ESP",
-                content = "Enabled"
-            })
+            window:Notify({ title = "Coin ESP", content = "Enabled" })
 
             -- highlight function
             local function highlightCoin(coin)
@@ -363,29 +360,58 @@ mm2:CreateButton({
                 esp.Parent = coin
             end
 
-            -- scan existing coins
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj.Name == "Coin" then
-                    highlightCoin(obj)
+            -- find the active map
+            local function getMap()
+                for _, obj in ipairs(workspace:GetChildren()) do
+                    if obj:IsA("Model") and obj:FindFirstChild("CoinContainer") then
+                        return obj
+                    end
+                end
+                return nil
+            end
+
+            local function scanCoins()
+                local map = getMap()
+                if not map then return end
+
+                local container = map:FindFirstChild("CoinContainer")
+                if not container then return end
+
+                for _, coin in ipairs(container:GetChildren()) do
+                    if coin.Name == "Coin-Server" then
+                        highlightCoin(coin)
+                    end
                 end
             end
 
-            -- auto ESP new coins
+            -- initial scan
+            scanCoins()
+
+            -- listen for new coins
             coinEspConnections.add = workspace.DescendantAdded:Connect(function(obj)
-                if coinEspEnabled and obj.Name == "Coin" then
+                if not coinEspEnabled then return end
+
+                if obj.Name == "Coin-Server" and obj.Parent and obj.Parent.Name == "CoinContainer" then
                     highlightCoin(obj)
                 end
             end)
 
+            -- listen for map changes (new round)
+            coinEspConnections.map = workspace.ChildAdded:Connect(function(obj)
+                if not coinEspEnabled then return end
+
+                if obj:IsA("Model") and obj:FindFirstChild("CoinContainer") then
+                    task.wait(0.5)
+                    scanCoins()
+                end
+            end)
+
         else
-            window:Notify({
-                title = "Coin ESP",
-                content = "Disabled"
-            })
+            window:Notify({ title = "Coin ESP", content = "Disabled" })
 
             -- remove ESP
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj.Name == "Coin" then
+                if obj.Name == "Coin-Server" then
                     local esp = obj:FindFirstChild("CoinESP")
                     if esp then esp:Destroy() end
                 end
