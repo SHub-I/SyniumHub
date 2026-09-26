@@ -329,6 +329,78 @@ mm2:CreateButton({
     end,
 })
 
+local coinEspEnabled = false
+local coinEspConnections = {}
+
+mm2:CreateButton({
+    name = "Coin ESP",
+    callback = function()
+        coinEspEnabled = not coinEspEnabled
+
+        if coinEspEnabled then
+            window:Notify({
+                title = "Coin ESP",
+                content = "Enabled"
+            })
+
+            -- highlight function
+            local function highlightCoin(coin)
+                if coin:FindFirstChild("CoinESP") then return end
+
+                local esp = Instance.new("BillboardGui")
+                esp.Name = "CoinESP"
+                esp.Size = UDim2.new(0, 100, 0, 20)
+                esp.AlwaysOnTop = true
+                esp.Adornee = coin
+
+                local label = Instance.new("TextLabel", esp)
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = "Coin"
+                label.TextColor3 = Color3.fromRGB(255, 255, 0)
+                label.TextScaled = true
+
+                esp.Parent = coin
+            end
+
+            -- scan existing coins
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name == "Coin" then
+                    highlightCoin(obj)
+                end
+            end
+
+            -- auto ESP new coins
+            coinEspConnections.add = workspace.DescendantAdded:Connect(function(obj)
+                if coinEspEnabled and obj.Name == "Coin" then
+                    highlightCoin(obj)
+                end
+            end)
+
+        else
+            window:Notify({
+                title = "Coin ESP",
+                content = "Disabled"
+            })
+
+            -- remove ESP
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj.Name == "Coin" then
+                    local esp = obj:FindFirstChild("CoinESP")
+                    if esp then esp:Destroy() end
+                end
+            end
+
+            -- disconnect listeners
+            for _, conn in pairs(coinEspConnections) do
+                conn:Disconnect()
+            end
+            coinEspConnections = {}
+        end
+    end,
+})
+
+
 ------------------------------------------------------------
 -- FTAP
 ------------------------------------------------------------
