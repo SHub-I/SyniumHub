@@ -90,6 +90,22 @@ universal:CreateButton({
 })
 
 universal:CreateButton({
+    name = "Nameless Admin",
+    callback = function()
+        window:Notify({ title = "Ran script", content = "Nameless Admin" })
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Nameless-Admin-23304"))()
+    end,
+})
+
+universal:CreateButton({
+    name = "Source Engine Movement",
+    callback = function()
+        window:Notify({ title = "Ran script", content = "SEM" })
+        loadstring(game:HttpGet("raw.githubusercontent."))()
+    end,
+})
+
+universal:CreateButton({
     name = "YARHM",
     callback = function()
         window:Notify({ title = "Ran script", content = "YARHM" })
