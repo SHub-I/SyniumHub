@@ -210,31 +210,29 @@ local function createGui()
     -- container
     local container = Instance.new("Frame")
     container.Name = "DBGContainer"
-    container.Size = UDim2.new(0, 240, 0, 140)
-    container.Position = UDim2.new(0, 12, 1, -20)
-    container.AnchorPoint = Vector2.new(0, 1)
+    container.Size = UDim2.new(0, 240, 0, 180)
+    container.Position = UDim2.new(0, 12, 1, -200)
+    container.AnchorPoint = Vector2.new(0, 0)
     container.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
     container.BorderSizePixel = 0
     container.Parent = g
 
     local containerCorner = Instance.new("UICorner", container)
     containerCorner.CornerRadius = UDim.new(0, 8)
-
     local containerStroke = Instance.new("UIStroke", container)
     containerStroke.Color = Color3.fromRGB(18, 18, 18)
     containerStroke.Thickness = 1
 
-    -- header
+    -- header (drag handle)
     local header = Instance.new("Frame")
     header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 28)
+    header.Size = UDim2.new(1, 0, 0, 36)
+    header.Position = UDim2.new(0, 0, 0, 0)
     header.BackgroundTransparency = 1
     header.Parent = container
 
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Parent = header
-    title.Size = UDim2.new(1, -16, 1, 0)
+    local title = Instance.new("TextLabel", header)
+    title.Size = UDim2.new(1, -12, 1, 0)
     title.Position = UDim2.new(0, 8, 0, 0)
     title.BackgroundTransparency = 1
     title.Text = "SourceDBG"
@@ -243,70 +241,18 @@ local function createGui()
     title.TextSize = 14
     title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- content frame (everything under the header)
-    local content = Instance.new("Frame")
-    content.Name = "Content"
-    content.Size = UDim2.new(1, 0, 1, -28) -- below header
-    content.Position = UDim2.new(0, 0, 0, 28)
-    content.BackgroundTransparency = 1
-    content.Parent = container
-
-    local padding = Instance.new("UIPadding", content)
-    padding.PaddingTop = UDim.new(0, 8)
+    -- vertical layout and padding for container content
+    local padding = Instance.new("UIPadding", container)
+    padding.PaddingTop = UDim.new(0, 44)
     padding.PaddingLeft = UDim.new(0, 8)
     padding.PaddingRight = UDim.new(0, 8)
     padding.PaddingBottom = UDim.new(0, 8)
 
-    local vLayout = Instance.new("UIListLayout", content)
+    local vLayout = Instance.new("UIListLayout", container)
     vLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    vLayout.Padding = UDim.new(0, 6)
+    vLayout.Padding = UDim.new(0, 8)
     vLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     vLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-
-    -- DESTROY
-    local destroy = Instance.new("TextButton")
-    destroy.Name = "DestroyButton"
-    destroy.Size = UDim2.new(1, -16, 0, 28)
-    destroy.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-    destroy.TextColor3 = Color3.new(1, 1, 1)
-    destroy.Text = "DESTROY"
-    destroy.Font = Enum.Font.GothamBold
-    destroy.TextSize = 14
-    destroy.LayoutOrder = 1
-    destroy.Parent = content
-
-    local destroyCorner = Instance.new("UICorner", destroy)
-    destroyCorner.CornerRadius = UDim.new(0, 6)
-
-    -- ON
-    local on = Instance.new("TextButton")
-    on.Name = "OnButton"
-    on.Size = UDim2.new(1, -16, 0, 28)
-    on.BackgroundColor3 = Color3.fromRGB(40, 180, 40)
-    on.TextColor3 = Color3.new(1, 1, 1)
-    on.Text = "ON"
-    on.Font = Enum.Font.GothamBold
-    on.TextSize = 14
-    on.LayoutOrder = 2
-    on.Parent = content
-
-    local onCorner = Instance.new("UICorner", on)
-    onCorner.CornerRadius = UDim.new(0, 6)
-
-    -- Mode
-    local mode = Instance.new("TextButton")
-    mode.Name = "ModeButton"
-    mode.Size = UDim2.new(1, -16, 0, 28)
-    mode.BackgroundColor3 = Color3.fromRGB(40, 80, 180)
-    mode.TextColor3 = Color3.new(1, 1, 1)
-    mode.Text = "Mode: default (PC)"
-    mode.Font = Enum.Font.GothamBold
-    mode.TextSize = 14
-    mode.LayoutOrder = 3
-    mode.Parent = content
-
-    local modeCorner = Instance.new("UICorner", mode)
-    modeCorner.CornerRadius = UDim.new(0, 6)
 
     -- helper to create buttons
     local function makeButton(text, size, bg)
