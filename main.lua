@@ -329,18 +329,17 @@ mm2:CreateButton({
     end,
 })
 
-local coinEspEnabled = false
 local coinEspObjects = {}
 local coinEspConnections = {}
 
-mm2:CreateButton({
+local coinEspToggle = mm2:CreateToggle({
     name = "Coin ESP",
-    callback = function()
-        coinEspEnabled = not coinEspEnabled
+    flag = "CoinESP",
+    value = false,
+    callback = function(enabled)
 
-        if coinEspEnabled then
-            window:Notify({ title = "Coin ESP", content = "Enabled" })
-
+        if enabled then
+            -- highlight function using Mana ESP
             local function addCoinESP(coin)
                 if coinEspObjects[coin] then return end
 
@@ -354,6 +353,7 @@ mm2:CreateButton({
                 coinEspObjects[coin] = esp
             end
 
+            -- find MM2 map
             local function getMap()
                 for _, obj in ipairs(workspace:GetChildren()) do
                     if obj:IsA("Model") and obj:FindFirstChild("CoinContainer") then
@@ -363,6 +363,7 @@ mm2:CreateButton({
                 return nil
             end
 
+            -- scan existing coins
             local function scanCoins()
                 local map = getMap()
                 if not map then return end
@@ -382,7 +383,7 @@ mm2:CreateButton({
 
             -- new coins
             coinEspConnections.add = workspace.DescendantAdded:Connect(function(obj)
-                if not coinEspEnabled then return end
+                if not coinEspToggle.value then return end
                 if obj.Name == "Coin-Server" and obj.Parent and obj.Parent.Name == "CoinContainer" then
                     addCoinESP(obj)
                 end
@@ -390,7 +391,7 @@ mm2:CreateButton({
 
             -- new map (new round)
             coinEspConnections.map = workspace.ChildAdded:Connect(function(obj)
-                if not coinEspEnabled then return end
+                if not coinEspToggle.value then return end
                 if obj:IsA("Model") and obj:FindFirstChild("CoinContainer") then
                     task.wait(0.5)
                     scanCoins()
@@ -398,9 +399,7 @@ mm2:CreateButton({
             end)
 
         else
-            window:Notify({ title = "Coin ESP", content = "Disabled" })
-
-            -- remove ESP objects
+            -- remove ESP
             for coin, esp in pairs(coinEspObjects) do
                 if esp.Remove then
                     esp:Remove()
