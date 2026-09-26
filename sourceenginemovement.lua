@@ -30,9 +30,9 @@ local Config = {
     AIR_ACCEL = 2200,
 
     AIR_SPEED = 6,
-    RUN_SPEED = 32,
-    WALK_SPEED = 32,
-    CROUCH_SPEED = 32,
+    RUN_SPEED = 20,
+    WALK_SPEED = 20,
+    CROUCH_SPEED = 20,
 
     AIR_MAX_SPEED = 36.5,
     AIR_MAX_SPEED_FRIC = 3,
