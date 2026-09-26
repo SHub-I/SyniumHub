@@ -219,6 +219,7 @@ local function createGui()
 
     local containerCorner = Instance.new("UICorner", container)
     containerCorner.CornerRadius = UDim.new(0, 8)
+
     local containerStroke = Instance.new("UIStroke", container)
     containerStroke.Color = Color3.fromRGB(18, 18, 18)
     containerStroke.Thickness = 1
@@ -226,8 +227,7 @@ local function createGui()
     -- header (drag handle)
     local header = Instance.new("Frame")
     header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 36)
-    header.Position = UDim2.new(0, 0, 0, 0)
+    header.Size = UDim2.new(1, 0, 0, 28) -- reduced from 36
     header.BackgroundTransparency = 1
     header.Parent = container
 
@@ -241,18 +241,20 @@ local function createGui()
     title.TextSize = 14
     title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- vertical layout and padding for container content
+    -- padding (reduced top padding)
     local padding = Instance.new("UIPadding", container)
-    padding.PaddingTop = UDim.new(0, 44)
+    padding.PaddingTop = UDim.new(0, 32) -- reduced from 44
     padding.PaddingLeft = UDim.new(0, 8)
     padding.PaddingRight = UDim.new(0, 8)
     padding.PaddingBottom = UDim.new(0, 8)
 
+    -- layout
     local vLayout = Instance.new("UIListLayout", container)
     vLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    vLayout.Padding = UDim.new(0, 8)
+    vLayout.Padding = UDim.new(0, 6)
     vLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     vLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
 
     -- helper to create buttons
     local function makeButton(text, size, bg)
