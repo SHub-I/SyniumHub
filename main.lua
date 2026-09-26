@@ -101,7 +101,7 @@ universal:CreateButton({
     name = "Source Engine Movement",
     callback = function()
         window:Notify({ title = "Ran script", content = "SEM" })
-        loadstring(game:HttpGet("raw.githubusercontent."))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/refs/heads/main/sourceenginemovement.lua"))()
     end,
 })
 
