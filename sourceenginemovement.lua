@@ -210,9 +210,9 @@ local function createGui()
     -- container
     local container = Instance.new("Frame")
     container.Name = "DBGContainer"
-    container.Size = UDim2.new(0, 240, 0, 120)
-    container.Position = UDim2.new(0, 12, 1, -200)
-    container.AnchorPoint = Vector2.new(0, 0)
+    container.Size = UDim2.new(0, 240, 0, 140)
+    container.Position = UDim2.new(0, 12, 1, -20)
+    container.AnchorPoint = Vector2.new(0, 1)
     container.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
     container.BorderSizePixel = 0
     container.Parent = g
