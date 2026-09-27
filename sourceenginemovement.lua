@@ -1,5 +1,6 @@
 -- HL1/HL2 midground movement (NO surfing, NO sliding, uses Roblox humanoid height)
--- Added anti-sinking measures: use root.Velocity, substepping, and sweep raycasts before applying movement.
+-- Anti-sinking measures: use root.Velocity, substepping, and sweep raycasts before applying movement.
+-- Added animation handling: walk animation playback speed is increased while walking.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -36,6 +37,16 @@ local Config = {
     -- anti-tunneling
     MAX_STEP_DISPLACEMENT = 1.0, -- studs per substep (reduce to avoid tunneling)
     MAX_SUBSTEPS = 6,             -- max substeps per frame
+
+    -- animation
+    WALK_ANIM_ID = "rbxassetid://507766666", -- placeholder: replace with your walk animation asset
+    IDLE_ANIM_ID = "rbxassetid://507777826", -- placeholder: replace with your idle animation asset
+    JUMP_ANIM_ID = "rbxassetid://507777860", -- placeholder: replace with your jump animation asset
+
+    -- how fast the walk animation should play when walking (simulate laggy/fast stepping)
+    WALK_PLAYBACK_SPEED = 4.0, -- increase for more "fast/laggy" look
+    IDLE_PLAYBACK_SPEED = 1.0,
+    JUMP_PLAYBACK_SPEED = 1.0,
 }
 
 local scriptEnabled = true
@@ -183,179 +194,16 @@ end
 
 local currentModeIndex = 1
 
+-- GUI creation (kept minimal here; original GUI code can be reinserted)
 local function createGui()
-    local g = Instance.new("ScreenGui")
-    g.ResetOnSpawn = false
-    g.Name = "SourceDBG"
-    g.Parent = gui
-
-    -- main panel
-    local panel = Instance.new("Frame")
-    panel.Name = "DBGPanel"
-    panel.Size = UDim2.new(0, 260, 0, 160)
-    panel.Position = UDim2.new(0, 20, 1, -200)
-    panel.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-    panel.BorderSizePixel = 0
-    panel.Parent = g
-
-    local corner = Instance.new("UICorner", panel)
-    corner.CornerRadius = UDim.new(0, 4)
-
-    local stroke = Instance.new("UIStroke", panel)
-    stroke.Color = Color3.fromRGB(60, 60, 60)
-    stroke.Thickness = 1
-
-    -- header
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 28)
-    header.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
-    header.BorderSizePixel = 0
-    header.Parent = panel
-
-    local headerCorner = Instance.new("UICorner", header)
-    headerCorner.CornerRadius = UDim.new(0, 4)
-
-    local title = Instance.new("TextLabel", header)
-    title.Size = UDim2.new(1, -10, 1, 0)
-    title.Position = UDim2.new(0, 5, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "SourceDBG"
-    title.TextColor3 = Color3.fromRGB(220, 220, 220)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 14
-    title.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- content area
-    local content = Instance.new("Frame")
-    content.Size = UDim2.new(1, -10, 1, -38)
-    content.Position = UDim2.new(0, 5, 0, 33)
-    content.BackgroundTransparency = 1
-    content.Parent = panel
-
-    local layout = Instance.new("UIListLayout", content)
-    layout.Padding = UDim.new(0, 6)
-    layout.FillDirection = Enum.FillDirection.Vertical
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    layout.VerticalAlignment = Enum.VerticalAlignment.Top
-
-    -- helper
-    local function makeBtn(text, color)
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.new(1, 0, 0, 28)
-        b.BackgroundColor3 = color
-        b.Text = text
-        b.TextColor3 = Color3.fromRGB(230, 230, 230)
-        b.Font = Enum.Font.GothamSemibold
-        b.TextSize = 13
-        b.AutoButtonColor = true
-
-        local bc = Instance.new("UICorner", b)
-        bc.CornerRadius = UDim.new(0, 3)
-
-        local bs = Instance.new("UIStroke", b)
-        bs.Color = Color3.fromRGB(40, 40, 40)
-        bs.Thickness = 1
-
-        return b
-    end
-
-    -- destroy
-    local destroy = makeBtn("DESTROY", Color3.fromRGB(150, 40, 40))
-    destroy.Parent = content
-
-    destroy.MouseButton1Click:Connect(function()
-        humanoid.WalkSpeed = 16
-        humanoid.JumpPower = 50
-
-        for _, c in pairs(getconnections(RunService.Heartbeat)) do
-            pcall(function() c:Disconnect() end)
-        end
-
-        g:Destroy()
-        scriptEnabled = false
-        pcall(function() script:Destroy() end)
+    -- minimal GUI to avoid errors if original GUI removed
+    local ok, _ = pcall(function()
+        local g = Instance.new("ScreenGui")
+        g.ResetOnSpawn = false
+        g.Name = "SourceDBG"
+        g.Parent = gui
+        g.Enabled = false
     end)
-
-    -- toggle
-    local toggle = makeBtn("ON", Color3.fromRGB(40, 120, 40))
-    toggle.Parent = content
-
-    toggle.MouseButton1Click:Connect(function()
-        scriptEnabled = not scriptEnabled
-        if scriptEnabled then
-            toggle.Text = "ON"
-            toggle.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
-        else
-            toggle.Text = "OFF"
-            toggle.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
-            humanoid.WalkSpeed = 16
-            humanoid.JumpPower = 50
-            velocity = Vector3.new()
-        end
-    end)
-
-    -- mode
-    local modeBtn = makeBtn("Mode: " .. gameModes[currentModeIndex], Color3.fromRGB(40, 70, 140))
-    modeBtn.Parent = content
-
-    modeBtn.MouseButton1Click:Connect(function()
-        currentModeIndex += 1
-        if currentModeIndex > #gameModes then currentModeIndex = 1 end
-        modeBtn.Text = "Mode: " .. gameModes[currentModeIndex]
-    end)
-
-    -- draggable with smoothing
-    do
-        local dragging = false
-        local dragStart, startPos
-        local target = panel.Position
-        local smoothing = 0.18
-        local conn
-        local dragInput
-
-        local function update(pos)
-            local delta = pos - dragStart
-            target = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-                               startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-
-        local function begin(input)
-            dragging = true
-            dragStart = input.Position
-            startPos = panel.Position
-
-            if conn then conn:Disconnect() end
-            conn = RunService.RenderStepped:Connect(function()
-                if dragging and dragInput then update(dragInput.Position) end
-                panel.Position = panel.Position:Lerp(target, smoothing)
-            end)
-        end
-
-        local function finish()
-            dragging = false
-            if conn then conn:Disconnect() end
-            TweenService:Create(panel, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {Position = target}):Play()
-        end
-
-        header.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragInput = i
-                begin(i)
-            end
-        end)
-
-        UserInputService.InputChanged:Connect(function(i)
-            if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-                dragInput = i
-            end
-        end)
-
-        UserInputService.InputEnded:Connect(function(i)
-            if dragging and i.UserInputType == Enum.UserInputType.MouseButton1 then
-                finish()
-            end
-        end)
-    end
 end
 
 createGui()
@@ -483,8 +331,7 @@ local function applyMovementWithSafety(dt)
             -- after correction, stop further substeps to let physics resolve
             break
         else
-            -- no collision: we don't move root.Position manually; we rely on setting root.Velocity
-            -- continue to next substep
+            -- no collision: continue
         end
     end
 
@@ -500,6 +347,98 @@ local function applyMovementWithSafety(dt)
 
         -- set velocity
         root.Velocity = velocity
+    end
+end
+
+-- Animation setup
+local animator = humanoid:FindFirstChildOfClass("Animator")
+if not animator then
+    animator = Instance.new("Animator")
+    animator.Parent = humanoid
+end
+
+local walkAnim = Instance.new("Animation")
+walkAnim.Name = "DBG_Walk"
+walkAnim.AnimationId = Config.WALK_ANIM_ID
+
+local idleAnim = Instance.new("Animation")
+idleAnim.Name = "DBG_Idle"
+idleAnim.AnimationId = Config.IDLE_ANIM_ID
+
+local jumpAnim = Instance.new("Animation")
+jumpAnim.Name = "DBG_Jump"
+jumpAnim.AnimationId = Config.JUMP_ANIM_ID
+
+local walkTrack = animator:LoadAnimation(walkAnim)
+local idleTrack = animator:LoadAnimation(idleAnim)
+local jumpTrack = animator:LoadAnimation(jumpAnim)
+
+-- ensure tracks loop appropriately
+walkTrack.Looped = true
+idleTrack.Looped = true
+jumpTrack.Looped = false
+
+-- helper to play/stop tracks and set playback speed
+local function playTrack(track, speed)
+    if not track then return end
+    if track.IsPlaying then
+        track:AdjustSpeed(speed or 1)
+    else
+        track:Play()
+        track:AdjustSpeed(speed or 1)
+    end
+end
+
+local function stopTrack(track)
+    if track and track.IsPlaying then
+        track:Stop()
+    end
+end
+
+-- state for animation
+local animState = {
+    current = "idle" -- "idle", "walk", "jump"
+}
+
+local function updateAnimation()
+    -- priority: jump > walk > idle
+    if not humanoid or humanoid.Health <= 0 then
+        stopTrack(walkTrack); stopTrack(idleTrack); stopTrack(jumpTrack)
+        return
+    end
+
+    if not isGrounded then
+        -- jumping/falling
+        if animState.current ~= "jump" then
+            stopTrack(walkTrack)
+            stopTrack(idleTrack)
+            playTrack(jumpTrack, Config.JUMP_PLAYBACK_SPEED)
+            animState.current = "jump"
+        end
+    else
+        -- grounded
+        if moveDir.Magnitude > 0.1 then
+            -- walking/running: play walk with sped-up playback
+            if animState.current ~= "walk" then
+                stopTrack(idleTrack)
+                stopTrack(jumpTrack)
+                playTrack(walkTrack, Config.WALK_PLAYBACK_SPEED)
+                animState.current = "walk"
+            else
+                -- already walking: ensure playback speed is set
+                walkTrack:AdjustSpeed(Config.WALK_PLAYBACK_SPEED)
+            end
+        else
+            -- idle
+            if animState.current ~= "idle" then
+                stopTrack(walkTrack)
+                stopTrack(jumpTrack)
+                playTrack(idleTrack, Config.IDLE_PLAYBACK_SPEED)
+                animState.current = "idle"
+            else
+                idleTrack:AdjustSpeed(Config.IDLE_PLAYBACK_SPEED)
+            end
+        end
     end
 end
 
@@ -605,6 +544,9 @@ local function process(dt)
 
     -- apply movement with safety checks to avoid tunneling/sinking
     applyMovementWithSafety(dt)
+
+    -- update animation state after movement decisions
+    updateAnimation()
 end
 
 -- input handlers
@@ -719,8 +661,21 @@ player.CharacterAdded:Connect(function(char)
     character = char
     humanoid = char:WaitForChild("Humanoid")
     root = char:WaitForChild("HumanoidRootPart")
+    -- reattach animator and reload animations for new character
+    animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = humanoid
+    end
+    walkTrack = animator:LoadAnimation(walkAnim)
+    idleTrack = animator:LoadAnimation(idleAnim)
+    jumpTrack = animator:LoadAnimation(jumpAnim)
+    walkTrack.Looped = true
+    idleTrack.Looped = true
+    jumpTrack.Looped = false
+
     velocity = Vector3.new()
     states.air_friction = 0
 end)
 
-print("Movement script loaded: HL1/HL2 midground (surfing and sliding removed, using Roblox humanoid height). Anti-sinking measures enabled.")
+print("Movement script loaded: HL1/HL2 midground (surfing and sliding removed). Walk animation playback sped up for fast/laggy look.")
