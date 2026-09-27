@@ -1,6 +1,6 @@
--- Syn's Source‑Style Movement System (Full Corrected Version)
--- HL1/HL2 ground accel, Quake air accel, Portal2 slide, Source surf, rocket jumping
--- Includes: GUI, dragInput fix, grounded friction fix, gravity fix, explosive boost fix
+-- Full movement script (HL1/HL2 midground + Portal2 slide + Quake air + Source surf features)
+-- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
+-- GUI updated: improved layout, draggable with smoothing, buttons fully inside container
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,43 +14,69 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local root = character:WaitForChild("HumanoidRootPart")
 
--- Movement tuning
-local cfg = {
-    gravity = 80,
-    jump = 26,
-    friction_ground = 6,
-    friction_air = 0.4,
-    accel_ground = 14,
-    accel_air = 2200,
-    run_speed = 20,
-    air_speed = 6,
-    air_max = 80,
-    air_fric_boost = 3,
-    air_fric_decay = 0.5,
-    slide_min = 8,
-    slide_boost = 1.12,
-    slide_fric = 1.2,
-    surf_min = 40,
-    surf_max = 75,
+-- Config (merged from provided Config and tuned for HL1/HL2 midground)
+local Config = {
+    VISUALIZE_FEET_HB = false,
+    VISUALIZE_COLLIDE_AND_SLIDE = false,
+    STEP_OFFSET = 1.2,
+    MASS = 16,
+    AIR_FRICTION = 0.4,
+    FRICTION = 6,
+    GRAVITY = 80,
+    JUMP_VELOCITY = 26,
+
+    GROUND_ACCEL = 14,
+    GROUND_DECCEL = 10,
+    AIR_ACCEL = 2200,
+
+    AIR_SPEED = 6,
+    RUN_SPEED = 20,
+    WALK_SPEED = 20,
+    CROUCH_SPEED = 20,
+
+    AIR_MAX_SPEED = 80,
+    AIR_MAX_SPEED_FRIC = 3,
+    AIR_MAX_SPEED_FRIC_DEC = 0.5,
+    MIN_SLOPE_ANGLE = 40,
+    MAX_SLOPE_ANGLE = 75,
+
+    LEG_HEIGHT = 1.9 + 0.3,
+    TORSO_TO_FEET = 3.1 + 1.9,
+    FEET_HB_SIZE = Vector3.new(1, 0.1, 1),
+    TORSO_HB_SIZE = Vector3.new(3, 1, 3),
+    FOOT_OFFSET_AMOUNT = 1.2,
+
+    SLIDE_FRICTION = 1.2,
+    SLIDE_BOOST = 1.12,
+    SLIDE_MIN_SPEED = 8,
+    SLIDE_DURATION = 0.9,
+    SURF_INFLUENCE = 0.6,
 }
 
-local vel = Vector3.zero
-local grounded = false
-local prevGround = false
+local scriptEnabled = true
+local spaceHeld = false
+local crouchHeld = false
+local sprintHeld = false
+
+local velocity = Vector3.new()
+local isGrounded = false
+local wasGrounded = false
+local moveDir = Vector3.new()
+
+local footstepTimer = 0
+local footstepInterval = 0.35
+local lastFootstepIndex = 0
+
 local sliding = false
-local slideTime = 0
-local surfState = false
-local airFric = 0
-local explosionBoost = 0
+local slideTimer = 0
+local states = {
+    air_friction = 0,
+    surfing = false,
+}
 
-local holdJump = false
-local holdCrouch = false
-local holdSprint = false
+local rocketBlastRadius = 25
 
-local enabled = true
-
--- Footstep sounds
-local footAudio = {
+local footstepSounds = {
     Slate = {
         "rbxassetid://81623756670923",
         "rbxassetid://78754179999047",
@@ -93,337 +119,636 @@ local footAudio = {
         "rbxassetid://98172042741214",
         "rbxassetid://106319783012941",
     },
-    Air = {""}
+    Air = { "" },
 }
 
--- Ground ray
-local function checkGround()
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {character}
-    params.FilterType = Enum.RaycastFilterType.Exclude
+local function getFloorMaterialAndTrace()
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-    local hit = workspace:Raycast(root.Position, Vector3.new(0, -5.5, 0), params)
-    if not hit then return false, nil end
-
-    if hit.Normal.Y < 0.6 then return false, nil end
-
-    return true, hit
+    local result = workspace:Raycast(root.Position, Vector3.new(0, -3.8, 0), rayParams)
+    if result and result.Instance then
+        local floorMaterial = result.Instance.Material.Name
+        if footstepSounds[floorMaterial] then
+            return floorMaterial, result
+        else
+            return "Slate", result
+        end
+    end
+    return "Slate", nil
 end
 
--- Footstep helpers
-local stepTimer = 0
-local stepInterval = 0.35
-local stepIndex = 1
+local function playFootstep()
+    local material, _ = getFloorMaterialAndTrace()
+    local soundTable = footstepSounds[material]
+    if not soundTable or #soundTable == 0 then return end
 
-local function playStep()
-    local ok, trace = checkGround()
-    local mat = ok and trace.Instance.Material.Name or "Slate"
-    local list = footAudio[mat] or footAudio.Slate
-    if #list == 0 then return end
+    lastFootstepIndex = lastFootstepIndex + 1
+    if lastFootstepIndex > #soundTable then lastFootstepIndex = 1 end
 
-    stepIndex += 1
-    if stepIndex > #list then stepIndex = 1 end
-
-    local s = Instance.new("Sound")
-    s.SoundId = list[stepIndex]
-    s.Volume = 0.6
-    s.PlaybackSpeed = 1 + (math.random(-8, 8) / 100)
-    s.Parent = workspace
-    s:Play()
-    game.Debris:AddItem(s, 2)
+    local sound = Instance.new("Sound", workspace)
+    sound.SoundId = soundTable[lastFootstepIndex]
+    sound.Volume = 0.6
+    sound.PlaybackSpeed = 1.0 + math.random(-8, 8) / 100
+    sound:Play()
+    game:GetService("Debris"):AddItem(sound, 2)
 end
 
-local function playJumpSound()
-    local ok, trace = checkGround()
-    local mat = ok and trace.Instance.Material.Name or "Slate"
-    local list = footAudio[mat] or footAudio.Slate
-    if #list == 0 then return end
+local function playJump()
+    local material, _ = getFloorMaterialAndTrace()
+    local soundTable = footstepSounds[material]
+    if not soundTable or #soundTable == 0 or soundTable[1] == "" then return end
 
-    local s = Instance.new("Sound")
-    s.SoundId = list[math.random(1, #list)]
-    s.Volume = 1
-    s.PlaybackSpeed = 1 + (math.random(-4, 4) / 100)
-    s.Parent = workspace
-    s:Play()
-    game.Debris:AddItem(s, 2)
+    local sound = Instance.new("Sound", workspace)
+    sound.SoundId = soundTable[math.random(1, #soundTable)]
+    sound.Volume = 1
+    sound.PlaybackSpeed = 1.0 + math.random(-4, 4) / 100
+    sound:Play()
+    game:GetService("Debris"):AddItem(sound, 2)
 end
 
-local function playLandSound()
-    local ok, trace = checkGround()
-    local mat = ok and trace.Instance.Material.Name or "Slate"
-    local list = footAudio[mat] or footAudio.Slate
-    if #list == 0 then return end
+local function playLand()
+    local material, _ = getFloorMaterialAndTrace()
+    local soundTable = footstepSounds[material]
+    if not soundTable or #soundTable == 0 or soundTable[1] == "" then return end
 
-    local s = Instance.new("Sound")
-    s.SoundId = list[math.random(1, #list)]
-    s.Volume = 1
-    s.PlaybackSpeed = 1 + (math.random(-4, 4) / 100)
-    s.Parent = workspace
-    s:Play()
-    game.Debris:AddItem(s, 2)
+    local sound = Instance.new("Sound", workspace)
+    sound.SoundId = soundTable[math.random(1, #soundTable)]
+    sound.Volume = 1.0
+    sound.PlaybackSpeed = 1.0 + math.random(-4, 4) / 100
+    sound:Play()
+    game:GetService("Debris"):AddItem(sound, 2)
 end
 
--- Friction
-local function applyFriction(dt, air, mult)
-    mult = mult or 1
-    local flat = Vector3.new(vel.X, 0, vel.Z)
-    local speed = flat.Magnitude
-    if speed < 0.01 then return end
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local gameModes = {}
 
-    local fr = air and cfg.friction_air or cfg.friction_ground
-    if surfState and not air then fr = cfg.slide_fric end
-
-    local control = math.max(speed, cfg.accel_ground)
-    local drop = control * fr * dt * mult
-    local newSpeed = math.max(speed - drop, 0)
-    local scale = newSpeed / speed
-
-    flat *= scale
-    vel = Vector3.new(flat.X, vel.Y, flat.Z)
+if isMobile then
+    gameModes = {
+        "default (mobile)",
+        "no grenades (mobile)",
+        "hard (mobile)"
+    }
+else
+    gameModes = {
+        "default (PC)",
+        "no grenades (PC)",
+        "hard (PC)"
+    }
 end
 
--- Acceleration
-local function accelerate(dir, wish, accel, dt, max)
-    if wish <= 0 or dir.Magnitude == 0 then return end
-    dir = dir.Unit
+local currentModeIndex = 1
 
-    local flat = Vector3.new(vel.X, 0, vel.Z)
-    local cur = flat:Dot(dir)
-    local add = wish - cur
-    if add <= 0 then return end
+local function createGui()
+    local g = Instance.new("ScreenGui")
+    g.ResetOnSpawn = false
+    g.Name = "SourceDBG"
+    g.Parent = gui
 
-    local accelSpeed = math.min(accel * dt * wish, add)
-    flat += dir * accelSpeed
+    -- main panel
+    local panel = Instance.new("Frame")
+    panel.Name = "DBGPanel"
+    panel.Size = UDim2.new(0, 260, 0, 160)
+    panel.Position = UDim2.new(0, 20, 1, -200)
+    panel.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    panel.BorderSizePixel = 0
+    panel.Parent = g
 
-    if max and flat.Magnitude > max and not surfState then
-        flat = flat.Unit * max
+    local corner = Instance.new("UICorner", panel)
+    corner.CornerRadius = UDim.new(0, 4)
+
+    local stroke = Instance.new("UIStroke", panel)
+    stroke.Color = Color3.fromRGB(60, 60, 60)
+    stroke.Thickness = 1
+
+    -- header
+    local header = Instance.new("Frame")
+    header.Size = UDim2.new(1, 0, 0, 28)
+    header.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    header.BorderSizePixel = 0
+    header.Parent = panel
+
+    local headerCorner = Instance.new("UICorner", header)
+    headerCorner.CornerRadius = UDim.new(0, 4)
+
+    local title = Instance.new("TextLabel", header)
+    title.Size = UDim2.new(1, -10, 1, 0)
+    title.Position = UDim2.new(0, 5, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "SourceDBG"
+    title.TextColor3 = Color3.fromRGB(220, 220, 220)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- content area
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, -10, 1, -38)
+    content.Position = UDim2.new(0, 5, 0, 33)
+    content.BackgroundTransparency = 1
+    content.Parent = panel
+
+    local layout = Instance.new("UIListLayout", content)
+    layout.Padding = UDim.new(0, 6)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+    -- helper
+    local function makeBtn(text, color)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1, 0, 0, 28)
+        b.BackgroundColor3 = color
+        b.Text = text
+        b.TextColor3 = Color3.fromRGB(230, 230, 230)
+        b.Font = Enum.Font.GothamSemibold
+        b.TextSize = 13
+        b.AutoButtonColor = true
+
+        local bc = Instance.new("UICorner", b)
+        bc.CornerRadius = UDim.new(0, 3)
+
+        local bs = Instance.new("UIStroke", b)
+        bs.Color = Color3.fromRGB(40, 40, 40)
+        bs.Thickness = 1
+
+        return b
     end
 
-    vel = Vector3.new(flat.X, vel.Y, flat.Z)
+    -- destroy
+    local destroy = makeBtn("DESTROY", Color3.fromRGB(150, 40, 40))
+    destroy.Parent = content
+
+    destroy.MouseButton1Click:Connect(function()
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+
+        for _, c in pairs(getconnections(RunService.Heartbeat)) do
+            pcall(function() c:Disconnect() end)
+        end
+
+        g:Destroy()
+        scriptEnabled = false
+        pcall(function() script:Destroy() end)
+    end)
+
+    -- toggle
+    local toggle = makeBtn("ON", Color3.fromRGB(40, 120, 40))
+    toggle.Parent = content
+
+    toggle.MouseButton1Click:Connect(function()
+        scriptEnabled = not scriptEnabled
+        if scriptEnabled then
+            toggle.Text = "ON"
+            toggle.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
+        else
+            toggle.Text = "OFF"
+            toggle.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
+            velocity = Vector3.new()
+        end
+    end)
+
+    -- mode
+    local modeBtn = makeBtn("Mode: " .. gameModes[currentModeIndex], Color3.fromRGB(40, 70, 140))
+    modeBtn.Parent = content
+
+    modeBtn.MouseButton1Click:Connect(function()
+        currentModeIndex += 1
+        if currentModeIndex > #gameModes then currentModeIndex = 1 end
+        modeBtn.Text = "Mode: " .. gameModes[currentModeIndex]
+    end)
+
+    -- draggable with smoothing
+    do
+        local dragging = false
+        local dragStart, startPos
+        local target = panel.Position
+        local smoothing = 0.18
+        local conn
+
+        local function update(pos)
+            local delta = pos - dragStart
+            target = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                               startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+
+        local function begin(input)
+            dragging = true
+            dragStart = input.Position
+            startPos = panel.Position
+
+            if conn then conn:Disconnect() end
+            conn = RunService.RenderStepped:Connect(function()
+                if dragging then update(dragInput.Position) end
+                panel.Position = panel.Position:Lerp(target, smoothing)
+            end)
+        end
+
+        local function finish()
+            dragging = false
+            if conn then conn:Disconnect() end
+            TweenService:Create(panel, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {Position = target}):Play()
+        end
+
+        header.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragInput = i
+                begin(i)
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(i)
+            if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+                dragInput = i
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(i)
+            if dragging and i.UserInputType == Enum.UserInputType.MouseButton1 then
+                finish()
+            end
+        end)
+    end
 end
 
--- Air control
-local function airControl(dir, dt)
-    if dir.Magnitude == 0 then return end
 
-    local flat = Vector3.new(vel.X, 0, vel.Z)
-    local speed = flat.Magnitude
+createGui()
+
+task.spawn(function()
+    while true do
+        task.wait()
+        if scriptEnabled then
+            for _, sound in pairs(root:GetChildren()) do
+                if sound:IsA("Sound") then sound.Volume = 0 end
+            end
+            for _, sound in pairs(humanoid:GetChildren()) do
+                if sound:IsA("Sound") then sound.Volume = 0 end
+            end
+        end
+    end
+end)
+
+local function grounded()
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    local result = workspace:Raycast(root.Position, Vector3.new(0, -3.8, 0), rayParams)
+    if result and result.Instance then
+        return result.Instance.CanCollide, result
+    end
+    return false, nil
+end
+
+local function ApplyFriction(dt, inAir, modifier)
+    modifier = modifier or 1
+    local vel = inAir and velocity or Vector3.new(velocity.X, 0, velocity.Z)
+    local speed = vel.Magnitude
+    if speed <= 0 then return end
+
+    local fric = inAir and Config.AIR_FRICTION or Config.FRICTION
+    if states.surfing and not inAir then
+        fric = Config.SLIDE_FRICTION or (Config.FRICTION * 0.5)
+    end
+
+    local control = speed < Config.GROUND_DECCEL and Config.GROUND_DECCEL or speed
+    local drop = control * fric * dt * modifier
+    local newSpeed = math.max(speed - drop, 0)
+    local scale = (speed > 0) and (newSpeed / speed) or 0
+
+    vel = vel * scale
+
+    if inAir then
+        velocity = Vector3.new(vel.X, velocity.Y, vel.Z)
+    else
+        velocity = Vector3.new(vel.X, velocity.Y, vel.Z)
+    end
+end
+
+local function Accelerate(wishDir, wishSpeed, accel, dt, maxSpeed)
+    if wishSpeed <= 0 or wishDir.Magnitude == 0 then return end
+    wishDir = wishDir.Unit
+    local flat = Vector3.new(velocity.X, 0, velocity.Z)
+    local currentSpeed = flat:Dot(wishDir)
+    local addSpeed = wishSpeed - currentSpeed
+    if addSpeed <= 0 then return end
+
+    local accelSpeed = math.min(accel * dt * wishSpeed, addSpeed)
+    local newFlat = flat + wishDir * accelSpeed
+
+    if maxSpeed and maxSpeed > 0 and newFlat.Magnitude > maxSpeed and not states.surfing then
+        newFlat = newFlat.Unit * maxSpeed
+    end
+
+    velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
+end
+
+local function AirControl(wishDir, dt)
+    if wishDir.Magnitude == 0 then return end
+    local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
+    local speed = flatVel.Magnitude
     if speed < 0.1 then return end
 
-    local wish = dir.Unit
-    local unit = flat.Unit
-    local dot = unit:Dot(wish)
+    local wish = wishDir.Unit
+    local velUnit = flatVel.Unit
+    local dot = velUnit:Dot(wish)
     if dot <= 0 then return end
 
-    local k = cfg.air_speed * dot * dt * (cfg.accel_air / 1000)
-    k *= 0.6
-
-    local newDir = (unit + wish * k)
+    local k = Config.AIR_SPEED * dot * dt * (Config.AIR_ACCEL / 1000)
+    k = k * (Config.SURF_INFLUENCE or 0.6)
+    local newDir = (velUnit + wish * k)
     if newDir.Magnitude == 0 then return end
-
     newDir = newDir.Unit
-    vel = Vector3.new(newDir.X * speed, vel.Y, newDir.Z * speed)
+    local newFlat = newDir * speed
+    velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
 end
 
--- Surf detection
-local function updateSurf(normal, trace)
-    surfState = false
-    if not normal or not trace then return end
-
-    local flat = Vector3.new(vel.X, 0, vel.Z)
+local function UpdateSurfState(groundNormal, trace)
+    local flat = Vector3.new(velocity.X, 0, velocity.Z)
     local speed = flat.Magnitude
-    if speed < cfg.air_speed then return end
+    local minAngle = Config.MIN_SLOPE_ANGLE or 40
+    local maxAngle = Config.MAX_SLOPE_ANGLE or 75
 
-    local angle = math.deg(math.acos(normal:Dot(Vector3.new(0,1,0))))
-    if angle < cfg.surf_min or angle > cfg.surf_max then return end
+    local wasSurfing = states.surfing
+    states.surfing = false
 
-    local tangent = Vector3.new(normal.Z, 0, -normal.X)
-    if tangent.Magnitude == 0 then return end
+    if groundNormal and speed > Config.AIR_SPEED and trace then
+        local angle = math.deg(math.acos(math.clamp(groundNormal:Dot(Vector3.new(0,1,0)), -1, 1)))
+        if angle >= minAngle and angle <= maxAngle then
+            local slopeTangent = Vector3.new(groundNormal.Z, 0, -groundNormal.X)
+            if slopeTangent.Magnitude > 0 then
+                slopeTangent = slopeTangent.Unit
+                local moveUnit = (flat.Magnitude > 0) and flat.Unit or Vector3.new(0,0,0)
+                local dot = math.abs(moveUnit:Dot(slopeTangent))
+                if dot > 0.3 then
+                    states.surfing = true
+                end
+            end
+        end
+    end
 
-    tangent = tangent.Unit
-    local move = flat.Magnitude > 0 and flat.Unit or Vector3.zero
-    local dot = math.abs(move:Dot(tangent))
-
-    if dot > 0.3 then
-        surfState = true
-        local boost = flat + tangent * (flat.Magnitude * 0.08)
-        vel = Vector3.new(boost.X, vel.Y, boost.Z)
-        airFric = 0
+    if states.surfing and not wasSurfing then
+        local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
+        local slopeTangent = Vector3.new(groundNormal.Z, 0, -groundNormal.X)
+        if slopeTangent.Magnitude > 0 then
+            slopeTangent = slopeTangent.Unit
+            local boost = flatVel + slopeTangent * (flatVel.Magnitude * 0.08)
+            velocity = Vector3.new(boost.X, velocity.Y, boost.Z)
+        end
+        states.air_friction = 0
     end
 end
 
--- Main movement loop
-local function tickMove(dt)
-    if not enabled then return end
+local function process(dt)
+    if not scriptEnabled then return end
 
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
 
-    prevGround = grounded
-    local hit
-    grounded, hit = checkGround()
+    wasGrounded = isGrounded
+    local groundTrace
+    isGrounded, groundTrace = grounded()
 
-    if grounded and not prevGround and vel.Y < -5 and not holdJump then
-        playLandSound()
-        stepTimer = 0
+    if isGrounded and not wasGrounded and velocity.Y < -5 and not spaceHeld then
+        playLand()
+        footstepTimer = 0
     end
 
-    -- Align yaw
+    -- align yaw to camera
+    local camLook = workspace.CurrentCamera.CFrame.LookVector
+    local flatCam = Vector3.new(camLook.X, 0, camLook.Z)
+    if flatCam.Magnitude > 0.01 then
+        root.CFrame = CFrame.new(root.Position, root.Position + flatCam)
+    end
+
     local cam = workspace.CurrentCamera
-    local look = cam.CFrame.LookVector
-    local flatLook = Vector3.new(look.X, 0, look.Z)
-    if flatLook.Magnitude > 0.01 then
-        root.CFrame = CFrame.new(root.Position, root.Position + flatLook)
-    end
-
-    -- Input
-    local forward = cam.CFrame.LookVector
+    local fwd = cam.CFrame.LookVector
     local right = cam.CFrame.RightVector
-    forward = Vector3.new(forward.X, 0, forward.Z).Unit
-    right = Vector3.new(right.X, 0, right.Z).Unit
+    fwd = Vector3.new(fwd.X, 0, fwd.Z)
+    right = Vector3.new(right.X, 0, right.Z)
+    if fwd.Magnitude > 0 then fwd = fwd.Unit end
+    if right.Magnitude > 0 then right = right.Unit end
 
-    local input = Vector3.zero
-    if UserInputService:IsKeyDown(Enum.KeyCode.W) then input += forward end
-    if UserInputService:IsKeyDown(Enum.KeyCode.S) then input -= forward end
-    if UserInputService:IsKeyDown(Enum.KeyCode.A) then input -= right end
-    if UserInputService:IsKeyDown(Enum.KeyCode.D) then input += right end
+    local input = Vector3.new()
+    if isMobile then
+        local moveVector = humanoid.MoveDirection
+        if moveVector.Magnitude > 0 then input = moveVector end
+    else
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then input += fwd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then input -= fwd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then input -= right end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then input += right end
+    end
     if input.Magnitude > 0 then input = input.Unit end
+    moveDir = input
 
-    -- Sliding
-    local flat = Vector3.new(vel.X, 0, vel.Z)
-    if holdCrouch and grounded and flat.Magnitude >= cfg.slide_min and input.Magnitude > 0 then
+    -- sliding detection
+    if crouchHeld and isGrounded and Vector3.new(velocity.X,0,velocity.Z).Magnitude >= Config.SLIDE_MIN_SPEED and moveDir.Magnitude > 0 then
         if not sliding then
             sliding = true
-            slideTime = 0
-            flat *= cfg.slide_boost
-            vel = Vector3.new(flat.X, vel.Y, flat.Z)
+            slideTimer = 0
+            local flat = Vector3.new(velocity.X, 0, velocity.Z)
+            flat = flat * Config.SLIDE_BOOST
+            velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
         end
-    elseif sliding and (not holdCrouch or not grounded) then
+    end
+    if sliding and (not crouchHeld or not isGrounded) then
         sliding = false
-        slideTime = 0
+        slideTimer = 0
+    end
+    if sliding then slideTimer = slideTimer + dt end
+
+    -- mode adjustments
+    local speedMult = sprintHeld and 1.15 or 1
+    local currentMaxAirSpeed = Config.AIR_MAX_SPEED
+    if gameModes[currentModeIndex] == "hard (PC)" or gameModes[currentModeIndex] == "hard (mobile)" then
+        currentMaxAirSpeed = Config.AIR_MAX_SPEED * 0.35
     end
 
-    if sliding then slideTime += dt end
+    -- movement branches
+    if isGrounded then
+        -- friction & surf update
+        ApplyFriction(dt, false, sliding and 0.9 or 1)
+        UpdateSurfState(groundTrace and groundTrace.Normal or nil, groundTrace)
 
-    -- Movement
-    local speedMult = holdSprint and 1.15 or 1
-    local maxAir = cfg.air_max
+        local wishDir = moveDir
+        local wishSpeed = Config.RUN_SPEED * speedMult * (moveDir.Magnitude > 0 and 1 or 0)
+        local groundAccel = sliding and (Config.GROUND_ACCEL * 0.6) or Config.GROUND_ACCEL
+        Accelerate(wishDir, wishSpeed, groundAccel, dt, nil)
 
-    if grounded and explosionBoost <= 0 then
-        applyFriction(dt, false, sliding and 0.9 or 1)
-        updateSurf(hit and hit.Normal or nil, hit)
-
-        local wish = cfg.run_speed * speedMult
-        accelerate(input, wish, sliding and (cfg.accel_ground * 0.6) or cfg.accel_ground, dt)
-
-        if input.Magnitude > 0.1 and not sliding then
-            stepTimer += dt
-            if stepTimer >= stepInterval then
-                playStep()
-                stepTimer = 0
+        if moveDir.Magnitude > 0.1 and not sliding then
+            footstepTimer = footstepTimer + dt
+            if footstepTimer >= footstepInterval then
+                playFootstep()
+                footstepTimer = 0
             end
         else
-            stepTimer = 0
+            footstepTimer = 0
         end
 
-        if holdJump then
-            vel = Vector3.new(vel.X, cfg.jump, vel.Z)
-            playJumpSound()
-            grounded = false
+        if spaceHeld then
+            velocity = Vector3.new(velocity.X, Config.JUMP_VELOCITY, velocity.Z)
+            playJump()
+            isGrounded = false
             sliding = false
-            slideTime = 0
+            slideTimer = 0
         else
-            vel = Vector3.new(vel.X, math.max(vel.Y, -2), vel.Z)
+            velocity = Vector3.new(velocity.X, 0, velocity.Z)
         end
     else
-        if flat.Magnitude > cfg.air_max then
-            airFric = cfg.air_fric_boost
+        -- air: friction when exceeding max speed
+        local flat = Vector3.new(velocity.X, 0, velocity.Z)
+        local currSpeed = flat.Magnitude
+        if currSpeed > Config.AIR_MAX_SPEED then
+            states.air_friction = Config.AIR_MAX_SPEED_FRIC
         end
 
-        if airFric > 0 and not surfState then
-            applyFriction(dt, true, 0.01 * airFric)
+        if states.air_friction > 0 and not states.surfing then
+            ApplyFriction(dt, true, 0.01 * states.air_friction)
         end
 
-        local wish = cfg.run_speed * speedMult
-        accelerate(input, wish, cfg.accel_air, dt, maxAir)
-        airControl(input, dt)
+        -- air accel & control
+        local wishDir = moveDir
+        local wishSpeed = Config.RUN_SPEED * speedMult * (moveDir.Magnitude > 0 and 1 or 0)
+        Accelerate(wishDir, wishSpeed, Config.AIR_ACCEL, dt, currentMaxAirSpeed)
+        AirControl(wishDir, dt)
 
-        if hit then
-            local n = hit.Normal
-            local f = Vector3.new(vel.X, 0, vel.Z)
-            local along = f - n * f:Dot(n)
+        -- surf influence if near slope
+        if groundTrace then
+            local normal = groundTrace.Normal
+            local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
+            local along = flatVel - normal * flatVel:Dot(normal)
             if along.Magnitude > 0 then
-                vel = Vector3.new(along.Unit.X * f.Magnitude, vel.Y, along.Unit.Z * f.Magnitude)
+                local newFlat = along.Unit * flatVel.Magnitude
+                velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
             end
         end
 
-        vel += Vector3.new(0, -cfg.gravity * dt, 0)
+        -- gravity
+        velocity = velocity + Vector3.new(0, -Config.GRAVITY * dt, 0)
     end
 
-    if airFric > 0 then
-        airFric = math.max(0, airFric - cfg.air_fric_decay * dt * 60)
+    -- decay air_friction over time
+    if states.air_friction and states.air_friction > 0 then
+        local sub = Config.AIR_MAX_SPEED_FRIC_DEC * dt * 60
+        states.air_friction = math.max(0, states.air_friction - sub)
     end
 
-    if explosionBoost > 0 then
-        explosionBoost -= dt
+    -- clamp global speed
+    local flat = Vector3.new(velocity.X, 0, velocity.Z)
+    local flatSpeed = flat.Magnitude
+    local maxGlobalSpeed = 200
+    if flatSpeed > maxGlobalSpeed then
+        flat = flat.Unit * maxGlobalSpeed
+        velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
     end
 
-    local f = Vector3.new(vel.X, 0, vel.Z)
-    if f.Magnitude > 200 then
-        f = f.Unit * 200
-        vel = Vector3.new(f.X, vel.Y, f.Z)
+    -- small ground-penetration correction to prevent sinking
+    if isGrounded and groundTrace and root and root:IsA("BasePart") then
+        local groundY = groundTrace.Position.Y
+        local desiredY = groundY + (Config.LEG_HEIGHT or 1.9) -- keep using Config.LEG_HEIGHT
+        local penetration = desiredY - root.Position.Y
+        -- only correct small penetrations to avoid teleporting the player
+        if penetration > 0 and penetration < 1.0 then
+            -- lift the root up to sit on the ground surface
+            root.CFrame = CFrame.new(root.Position + Vector3.new(0, penetration, 0), root.Position + root.CFrame.LookVector)
+            -- ensure vertical velocity is zero so physics doesn't push back down
+            velocity = Vector3.new(velocity.X, 0, velocity.Z)
+        end
     end
 
-    root.AssemblyLinearVelocity = vel
+    -- apply to root
+    if root and root:IsA("BasePart") then
+        root.AssemblyLinearVelocity = velocity
+    end
 end
 
--- Input
+-- input handlers
 UserInputService.InputBegan:Connect(function(i, gp)
     if gp then return end
-    if i.KeyCode == Enum.KeyCode.Space then holdJump = true end
-    if i.KeyCode == Enum.KeyCode.LeftControl then holdCrouch = true end
-    if i.KeyCode == Enum.KeyCode.LeftShift then holdSprint = true end
+    if i.KeyCode == Enum.KeyCode.Space then
+        spaceHeld = true
+    elseif i.KeyCode == Enum.KeyCode.LeftControl or i.KeyCode == Enum.KeyCode.RightControl then
+        crouchHeld = true
+    elseif i.KeyCode == Enum.KeyCode.LeftShift or i.KeyCode == Enum.KeyCode.RightShift then
+        sprintHeld = true
+    elseif i.KeyCode == Enum.KeyCode.X and scriptEnabled and not isMobile then
+        local currentMode = gameModes[currentModeIndex]
+        if currentMode == "no grenades (PC)" or currentMode == "no grenades (mobile)" or
+           currentMode == "hard (PC)" or currentMode == "hard (mobile)" then
+            return
+        end
 
-    if i.KeyCode == Enum.KeyCode.X then
         local cam = workspace.CurrentCamera
-        local dir = cam.CFrame.LookVector
-        local startPos = root.Position + dir * 3
+        local direction = cam.CFrame.LookVector
+        local startPos = root.Position + direction * 3
 
         local rocket = Instance.new("Part")
+        rocket.Name = "Rocket"
         rocket.Size = Vector3.new(0.5, 0.5, 2)
+        rocket.BrickColor = BrickColor.new("Really red")
         rocket.Material = Enum.Material.Neon
-        rocket.Color = Color3.new(1, 0, 0)
         rocket.Anchored = false
         rocket.CanCollide = false
-        rocket.CFrame = CFrame.lookAt(startPos, startPos + dir)
+        rocket.CFrame = CFrame.lookAt(startPos, startPos + direction)
         rocket.Parent = workspace
 
-        rocket.AssemblyLinearVelocity = dir * 150
+        local attachment0 = Instance.new("Attachment", rocket)
+        attachment0.Position = Vector3.new(0, 0, -1)
+        local attachment1 = Instance.new("Attachment", rocket)
+        local trail = Instance.new("Trail", rocket)
+        trail.Attachment0 = attachment0
+        trail.Attachment1 = attachment1
+        trail.Color = ColorSequence.new(Color3.fromRGB(255, 165, 0))
+        trail.Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.3),
+            NumberSequenceKeypoint.new(1, 1)
+        }
+        trail.Lifetime = 0.3
+        trail.MinLength = 0
 
-        local shoot = Instance.new("Sound", root)
-        shoot.SoundId = "rbxassetid://2156366946"
-        shoot.Volume = 1
-        shoot:Play()
-        game.Debris:AddItem(shoot, 2)
+        rocket.AssemblyLinearVelocity = direction * 150
 
-        rocket.Touched:Connect(function(hit)
+        local explodeSound = Instance.new("Sound")
+        explodeSound.SoundId = "rbxassetid://90586353104830"
+        explodeSound.Volume = 0.2
+        explodeSound.PlaybackSpeed = 1
+
+        local shootSound = Instance.new("Sound", root)
+        shootSound.SoundId = "rbxassetid://2156366946"
+        shootSound.Volume = 1.0
+        shootSound.PlaybackSpeed = 1.0
+        shootSound:Play()
+        game.Debris:AddItem(shootSound, 2)
+
+        local connection
+        connection = rocket.Touched:Connect(function(hit)
             if hit and not hit:IsDescendantOf(character) then
-                local pos = rocket.Position
-                local dist = (root.Position - pos).Magnitude
+                local explosionPos = rocket.Position
+                local dist = (root.Position - explosionPos).Magnitude
+                local shouldPush = dist <= rocketBlastRadius
 
-                local boom = Instance.new("Explosion")
-                boom.Position = pos
-                boom.BlastPressure = 0
-                boom.BlastRadius = 25
-                boom.Parent = workspace
+                explodeSound.Parent = workspace
+                explodeSound:Play()
+                game.Debris:AddItem(explodeSound, 2)
 
-                if dist <= 25 then
-                    local push = (root.Position - pos).Unit * 80
-                    vel = vel + push
-                    explosionBoost = 0.12
+                local explosion = Instance.new("Explosion")
+                explosion.Position = explosionPos
+                explosion.BlastPressure = 0
+                explosion.BlastRadius = rocketBlastRadius
+                explosion.Parent = workspace
+
+                if shouldPush then
+                    local dir = (root.Position - explosionPos).Unit
+                    local forceMagnitude = 80
+                    velocity = velocity + dir * forceMagnitude
                 end
 
                 rocket:Destroy()
+                connection:Disconnect()
             end
         end)
 
@@ -432,14 +757,14 @@ UserInputService.InputBegan:Connect(function(i, gp)
 end)
 
 UserInputService.InputEnded:Connect(function(i)
-    if i.KeyCode == Enum.KeyCode.Space then holdJump = false end
-    if i.KeyCode == Enum.KeyCode.LeftControl then holdCrouch = false end
-    if i.KeyCode == Enum.KeyCode.LeftShift then holdSprint = false end
+    if i.KeyCode == Enum.KeyCode.Space then spaceHeld = false end
+    if i.KeyCode == Enum.KeyCode.LeftControl or i.KeyCode == Enum.KeyCode.RightControl then crouchHeld = false end
+    if i.KeyCode == Enum.KeyCode.LeftShift or i.KeyCode == Enum.KeyCode.RightShift then sprintHeld = false end
 end)
 
 RunService.Heartbeat:Connect(function(dt)
-    if humanoid.Health > 0 then
-        tickMove(dt)
+    if humanoid and humanoid.Health > 0 then
+        process(dt)
     end
 end)
 
@@ -447,12 +772,11 @@ player.CharacterAdded:Connect(function(char)
     character = char
     humanoid = char:WaitForChild("Humanoid")
     root = char:WaitForChild("HumanoidRootPart")
-    vel = Vector3.zero
+    velocity = Vector3.new()
     sliding = false
-    slideTime = 0
-    surfState = false
-    airFric = 0
-    explosionBoost = 0
+    slideTimer = 0
+    states.air_friction = 0
+    states.surfing = false
 end)
 
-print("Syn Movement System Loaded (Full Corrected Version)")
+print("Movement script loaded: HL1/HL2 midground + Portal2 slide + Quake air + Source surf features (GUI improved, draggable)")
