@@ -1,6 +1,4 @@
--- Full movement script (HL1/HL2 midground + Portal2 slide + Quake air + Source surf features)
--- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
--- GUI updated: improved layout, draggable with smoothing, buttons fully inside container
+-- HL1/HL2 midground movement (NO surfing, NO sliding, uses Roblox humanoid height)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,12 +12,8 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local root = character:WaitForChild("HumanoidRootPart")
 
--- Config (merged from provided Config and tuned for HL1/HL2 midground)
+-- Config (surf + slide removed)
 local Config = {
-    VISUALIZE_FEET_HB = false,
-    VISUALIZE_COLLIDE_AND_SLIDE = false,
-    STEP_OFFSET = 1.2,
-    MASS = 16,
     AIR_FRICTION = 0.4,
     FRICTION = 6,
     GRAVITY = 80,
@@ -37,20 +31,6 @@ local Config = {
     AIR_MAX_SPEED = 80,
     AIR_MAX_SPEED_FRIC = 3,
     AIR_MAX_SPEED_FRIC_DEC = 0.5,
-    MIN_SLOPE_ANGLE = 40,
-    MAX_SLOPE_ANGLE = 75,
-
-    LEG_HEIGHT = 1.9 + 0.3,
-    TORSO_TO_FEET = 3.1 + 1.9,
-    FEET_HB_SIZE = Vector3.new(1, 0.1, 1),
-    TORSO_HB_SIZE = Vector3.new(3, 1, 3),
-    FOOT_OFFSET_AMOUNT = 1.2,
-
-    SLIDE_FRICTION = 1.2,
-    SLIDE_BOOST = 1.12,
-    SLIDE_MIN_SPEED = 8,
-    SLIDE_DURATION = 0.9,
-    SURF_INFLUENCE = 0.6,
 }
 
 local scriptEnabled = true
@@ -67,15 +47,13 @@ local footstepTimer = 0
 local footstepInterval = 0.35
 local lastFootstepIndex = 0
 
-local sliding = false
-local slideTimer = 0
 local states = {
     air_friction = 0,
-    surfing = false,
 }
 
 local rocketBlastRadius = 25
 
+-- Footstep sounds (unchanged)
 local footstepSounds = {
     Slate = {
         "rbxassetid://81623756670923",
@@ -127,7 +105,7 @@ local function getFloorMaterialAndTrace()
     rayParams.FilterDescendantsInstances = {character}
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-    local result = workspace:Raycast(root.Position, Vector3.new(0, -3.8, 0), rayParams)
+    local result = workspace:Raycast(root.Position, Vector3.new(0, -4, 0), rayParams)
     if result and result.Instance then
         local floorMaterial = result.Instance.Material.Name
         if footstepSounds[floorMaterial] then
@@ -328,6 +306,7 @@ local function createGui()
         local target = panel.Position
         local smoothing = 0.18
         local conn
+        local dragInput
 
         local function update(pos)
             local delta = pos - dragStart
@@ -342,7 +321,7 @@ local function createGui()
 
             if conn then conn:Disconnect() end
             conn = RunService.RenderStepped:Connect(function()
-                if dragging then update(dragInput.Position) end
+                if dragging and dragInput then update(dragInput.Position) end
                 panel.Position = panel.Position:Lerp(target, smoothing)
             end)
         end
@@ -374,7 +353,6 @@ local function createGui()
     end
 end
 
-
 createGui()
 
 task.spawn(function()
@@ -391,19 +369,9 @@ task.spawn(function()
     end
 end)
 
--- Modified grounded: start ray slightly above root to avoid missing surface when root is slightly penetrating
+-- Grounded using humanoid state + raycast for material detection
 local function grounded()
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {character}
-    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-
-    -- start the ray a bit above the root to avoid being inside geometry
-    local rayStart = root.Position + Vector3.new(0, 0.2, 0)
-    local result = workspace:Raycast(rayStart, Vector3.new(0, -4.0, 0), rayParams)
-    if result and result.Instance then
-        return result.Instance.CanCollide, result
-    end
-    return false, nil
+    return humanoid.FloorMaterial ~= Enum.Material.Air
 end
 
 local function ApplyFriction(dt, inAir, modifier)
@@ -413,10 +381,6 @@ local function ApplyFriction(dt, inAir, modifier)
     if speed <= 0 then return end
 
     local fric = inAir and Config.AIR_FRICTION or Config.FRICTION
-    if states.surfing and not inAir then
-        fric = Config.SLIDE_FRICTION or (Config.FRICTION * 0.5)
-    end
-
     local control = speed < Config.GROUND_DECCEL and Config.GROUND_DECCEL or speed
     local drop = control * fric * dt * modifier
     local newSpeed = math.max(speed - drop, 0)
@@ -424,11 +388,7 @@ local function ApplyFriction(dt, inAir, modifier)
 
     vel = vel * scale
 
-    if inAir then
-        velocity = Vector3.new(vel.X, velocity.Y, vel.Z)
-    else
-        velocity = Vector3.new(vel.X, velocity.Y, vel.Z)
-    end
+    velocity = Vector3.new(vel.X, velocity.Y, vel.Z)
 end
 
 local function Accelerate(wishDir, wishSpeed, accel, dt, maxSpeed)
@@ -442,7 +402,7 @@ local function Accelerate(wishDir, wishSpeed, accel, dt, maxSpeed)
     local accelSpeed = math.min(accel * dt * wishSpeed, addSpeed)
     local newFlat = flat + wishDir * accelSpeed
 
-    if maxSpeed and maxSpeed > 0 and newFlat.Magnitude > maxSpeed and not states.surfing then
+    if maxSpeed and maxSpeed > 0 and newFlat.Magnitude > maxSpeed then
         newFlat = newFlat.Unit * maxSpeed
     end
 
@@ -461,48 +421,11 @@ local function AirControl(wishDir, dt)
     if dot <= 0 then return end
 
     local k = Config.AIR_SPEED * dot * dt * (Config.AIR_ACCEL / 1000)
-    k = k * (Config.SURF_INFLUENCE or 0.6)
     local newDir = (velUnit + wish * k)
     if newDir.Magnitude == 0 then return end
     newDir = newDir.Unit
     local newFlat = newDir * speed
     velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
-end
-
-local function UpdateSurfState(groundNormal, trace)
-    local flat = Vector3.new(velocity.X, 0, velocity.Z)
-    local speed = flat.Magnitude
-    local minAngle = Config.MIN_SLOPE_ANGLE or 40
-    local maxAngle = Config.MAX_SLOPE_ANGLE or 75
-
-    local wasSurfing = states.surfing
-    states.surfing = false
-
-    if groundNormal and speed > Config.AIR_SPEED and trace then
-        local angle = math.deg(math.acos(math.clamp(groundNormal:Dot(Vector3.new(0,1,0)), -1, 1)))
-        if angle >= minAngle and angle <= maxAngle then
-            local slopeTangent = Vector3.new(groundNormal.Z, 0, -groundNormal.X)
-            if slopeTangent.Magnitude > 0 then
-                slopeTangent = slopeTangent.Unit
-                local moveUnit = (flat.Magnitude > 0) and flat.Unit or Vector3.new(0,0,0)
-                local dot = math.abs(moveUnit:Dot(slopeTangent))
-                if dot > 0.3 then
-                    states.surfing = true
-                end
-            end
-        end
-    end
-
-    if states.surfing and not wasSurfing then
-        local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
-        local slopeTangent = Vector3.new(groundNormal.Z, 0, -groundNormal.X)
-        if slopeTangent.Magnitude > 0 then
-            slopeTangent = slopeTangent.Unit
-            local boost = flatVel + slopeTangent * (flatVel.Magnitude * 0.08)
-            velocity = Vector3.new(boost.X, velocity.Y, boost.Z)
-        end
-        states.air_friction = 0
-    end
 end
 
 local function process(dt)
@@ -512,8 +435,7 @@ local function process(dt)
     humanoid.JumpPower = 0
 
     wasGrounded = isGrounded
-    local groundTrace
-    isGrounded, groundTrace = grounded()
+    isGrounded = grounded()
 
     if isGrounded and not wasGrounded and velocity.Y < -5 and not spaceHeld then
         playLand()
@@ -548,41 +470,22 @@ local function process(dt)
     if input.Magnitude > 0 then input = input.Unit end
     moveDir = input
 
-    -- sliding detection
-    if crouchHeld and isGrounded and Vector3.new(velocity.X,0,velocity.Z).Magnitude >= Config.SLIDE_MIN_SPEED and moveDir.Magnitude > 0 then
-        if not sliding then
-            sliding = true
-            slideTimer = 0
-            local flat = Vector3.new(velocity.X, 0, velocity.Z)
-            flat = flat * Config.SLIDE_BOOST
-            velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
-        end
-    end
-    if sliding and (not crouchHeld or not isGrounded) then
-        sliding = false
-        slideTimer = 0
-    end
-    if sliding then slideTimer = slideTimer + dt end
-
     -- mode adjustments
     local speedMult = sprintHeld and 1.15 or 1
     local currentMaxAirSpeed = Config.AIR_MAX_SPEED
-    if gameModes[currentModeIndex] == "hard (PC)" or gameModes[currentModeIndex] == "hard (mobile)" then
+    if gameModes[currentModeIndex]:find("hard") then
         currentMaxAirSpeed = Config.AIR_MAX_SPEED * 0.35
     end
 
-    -- movement branches
+    -- movement
     if isGrounded then
-        -- friction & surf update
-        ApplyFriction(dt, false, sliding and 0.9 or 1)
-        UpdateSurfState(groundTrace and groundTrace.Normal or nil, groundTrace)
+        ApplyFriction(dt, false)
 
         local wishDir = moveDir
         local wishSpeed = Config.RUN_SPEED * speedMult * (moveDir.Magnitude > 0 and 1 or 0)
-        local groundAccel = sliding and (Config.GROUND_ACCEL * 0.6) or Config.GROUND_ACCEL
-        Accelerate(wishDir, wishSpeed, groundAccel, dt, nil)
+        Accelerate(wishDir, wishSpeed, Config.GROUND_ACCEL, dt, nil)
 
-        if moveDir.Magnitude > 0.1 and not sliding then
+        if moveDir.Magnitude > 0.1 then
             footstepTimer = footstepTimer + dt
             if footstepTimer >= footstepInterval then
                 playFootstep()
@@ -596,51 +499,33 @@ local function process(dt)
             velocity = Vector3.new(velocity.X, Config.JUMP_VELOCITY, velocity.Z)
             playJump()
             isGrounded = false
-            sliding = false
-            slideTimer = 0
         else
             velocity = Vector3.new(velocity.X, 0, velocity.Z)
         end
     else
-        -- air: friction when exceeding max speed
         local flat = Vector3.new(velocity.X, 0, velocity.Z)
         local currSpeed = flat.Magnitude
         if currSpeed > Config.AIR_MAX_SPEED then
             states.air_friction = Config.AIR_MAX_SPEED_FRIC
         end
 
-        if states.air_friction > 0 and not states.surfing then
+        if states.air_friction > 0 then
             ApplyFriction(dt, true, 0.01 * states.air_friction)
         end
 
-        -- air accel & control
         local wishDir = moveDir
         local wishSpeed = Config.RUN_SPEED * speedMult * (moveDir.Magnitude > 0 and 1 or 0)
         Accelerate(wishDir, wishSpeed, Config.AIR_ACCEL, dt, currentMaxAirSpeed)
         AirControl(wishDir, dt)
 
-        -- surf influence if near slope
-        if groundTrace then
-            local normal = groundTrace.Normal
-            local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
-            local along = flatVel - normal * flatVel:Dot(normal)
-            if along.Magnitude > 0 then
-                local newFlat = along.Unit * flatVel.Magnitude
-                velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
-            end
-        end
-
-        -- gravity
         velocity = velocity + Vector3.new(0, -Config.GRAVITY * dt, 0)
     end
 
-    -- decay air_friction over time
-    if states.air_friction and states.air_friction > 0 then
+    if states.air_friction > 0 then
         local sub = Config.AIR_MAX_SPEED_FRIC_DEC * dt * 60
         states.air_friction = math.max(0, states.air_friction - sub)
     end
 
-    -- clamp global speed
     local flat = Vector3.new(velocity.X, 0, velocity.Z)
     local flatSpeed = flat.Magnitude
     local maxGlobalSpeed = 200
@@ -649,43 +534,7 @@ local function process(dt)
         velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
     end
 
-    -- stronger ground-penetration correction and immediate physics sync
-    if isGrounded and groundTrace and root and root:IsA("BasePart") then
-        -- authoritative ground Y from trace
-        local groundY = groundTrace.Position.Y
-        local desiredY = groundY + (Config.LEG_HEIGHT or 1.9)
-
-        -- penetration: positive means root is below desiredY
-        local penetration = desiredY - root.Position.Y
-
-        -- thresholds
-        local minCorrection = 0.01    -- ignore tiny noise
-        local maxCorrection = 0.35    -- conservative per-frame max
-        local largePenetration = 1.0  -- if bigger than this, treat as big overlap
-
-        if penetration > minCorrection then
-            if penetration > largePenetration then
-                -- large overlap: gently nudge up by maxCorrection to avoid teleporting
-                local correction = math.min(penetration, maxCorrection)
-                local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
-                root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
-                velocity = Vector3.new(velocity.X, 0, velocity.Z)
-                root.AssemblyLinearVelocity = velocity
-            else
-                -- small/medium overlap: fully correct but clamp to maxCorrection to be safe
-                local correction = math.min(penetration, maxCorrection)
-                local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
-                root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
-                velocity = Vector3.new(velocity.X, 0, velocity.Z)
-                root.AssemblyLinearVelocity = velocity
-            end
-        end
-    end
-
-    -- apply to root
-    if root and root:IsA("BasePart") then
-        root.AssemblyLinearVelocity = velocity
-    end
+    root.AssemblyLinearVelocity = velocity
 end
 
 -- input handlers
@@ -699,8 +548,7 @@ UserInputService.InputBegan:Connect(function(i, gp)
         sprintHeld = true
     elseif i.KeyCode == Enum.KeyCode.X and scriptEnabled and not isMobile then
         local currentMode = gameModes[currentModeIndex]
-        if currentMode == "no grenades (PC)" or currentMode == "no grenades (mobile)" or
-           currentMode == "hard (PC)" or currentMode == "hard (mobile)" then
+        if currentMode:find("no grenades") or currentMode:find("hard") then
             return
         end
 
@@ -764,13 +612,18 @@ UserInputService.InputBegan:Connect(function(i, gp)
                 explosion.Parent = workspace
 
                 if shouldPush then
-                    local dir = (root.Position - explosionPos).Unit
-                    local forceMagnitude = 80
-                    velocity = velocity + dir * forceMagnitude
+                    local dir = (root.Position - explosionPos)
+                    if dir.Magnitude > 0 then
+                        dir = dir.Unit
+                        local forceMagnitude = 80
+                        velocity = velocity + dir * forceMagnitude
+                    end
                 end
 
                 rocket:Destroy()
-                connection:Disconnect()
+                if connection then
+                    connection:Disconnect()
+                end
             end
         end)
 
@@ -795,10 +648,7 @@ player.CharacterAdded:Connect(function(char)
     humanoid = char:WaitForChild("Humanoid")
     root = char:WaitForChild("HumanoidRootPart")
     velocity = Vector3.new()
-    sliding = false
-    slideTimer = 0
     states.air_friction = 0
-    states.surfing = false
 end)
 
-print("Movement script loaded: HL1/HL2 midground + Portal2 slide + Quake air + Source surf features (GUI improved, draggable)")
+print("Movement script loaded: HL1/HL2 midground (surfing and sliding removed, using Roblox humanoid height)")
