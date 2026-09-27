@@ -2,10 +2,6 @@
 -- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
 -- GUI updated: improved layout, draggable with smoothing, buttons fully inside container
 
--- From the uploaded file:
--- Full movement script (HL1/HL2 midground + Portal2 slide + Quake air + Source surf features)
--- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -395,12 +391,15 @@ task.spawn(function()
     end
 end)
 
+-- Modified grounded: start ray slightly above root to avoid missing surface when root is slightly penetrating
 local function grounded()
     local rayParams = RaycastParams.new()
     rayParams.FilterDescendantsInstances = {character}
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-    local result = workspace:Raycast(root.Position, Vector3.new(0, -3.8, 0), rayParams)
+    -- start the ray a bit above the root to avoid being inside geometry
+    local rayStart = root.Position + Vector3.new(0, 0.2, 0)
+    local result = workspace:Raycast(rayStart, Vector3.new(0, -4.0, 0), rayParams)
     if result and result.Instance then
         return result.Instance.CanCollide, result
     end
@@ -650,27 +649,34 @@ local function process(dt)
         velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
     end
 
-    -- improved ground-penetration correction (safer, smaller threshold, sync physics)
+    -- stronger ground-penetration correction and immediate physics sync
     if isGrounded and groundTrace and root and root:IsA("BasePart") then
-        -- Use the trace position for a reliable ground Y
+        -- authoritative ground Y from trace
         local groundY = groundTrace.Position.Y
         local desiredY = groundY + (Config.LEG_HEIGHT or 1.9)
-        -- compute how far root is below desired surface
+
+        -- penetration: positive means root is below desiredY
         local penetration = desiredY - root.Position.Y
 
-        -- thresholds tuned to correct small penetrations without teleporting
-        local minCorrection = 0.02    -- ignore tiny floating point noise
-        local maxCorrection = 0.5     -- never move more than this in one frame
+        -- thresholds
+        local minCorrection = 0.01    -- ignore tiny noise
+        local maxCorrection = 0.35    -- conservative per-frame max
+        local largePenetration = 1.0  -- if bigger than this, treat as big overlap
+
         if penetration > minCorrection then
-            local correction = math.min(penetration, maxCorrection)
-
-            -- move only on the Y axis to avoid changing orientation
-            local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
-            root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
-
-            -- zero vertical velocity and immediately apply to AssemblyLinearVelocity so physics stays stable
-            velocity = Vector3.new(velocity.X, 0, velocity.Z)
-            if root and root:IsA("BasePart") then
+            if penetration > largePenetration then
+                -- large overlap: gently nudge up by maxCorrection to avoid teleporting
+                local correction = math.min(penetration, maxCorrection)
+                local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
+                root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
+                velocity = Vector3.new(velocity.X, 0, velocity.Z)
+                root.AssemblyLinearVelocity = velocity
+            else
+                -- small/medium overlap: fully correct but clamp to maxCorrection to be safe
+                local correction = math.min(penetration, maxCorrection)
+                local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
+                root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
+                velocity = Vector3.new(velocity.X, 0, velocity.Z)
                 root.AssemblyLinearVelocity = velocity
             end
         end
