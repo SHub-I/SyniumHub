@@ -26,7 +26,7 @@ end
 -- CONFIG
 ------------------------------------------------------------
 
-local PREMIUM_KEY = "23209re"
+local PREMIUM_KEY = "23209pre"
 local LITE_KEY = "9023lite"
 
 ------------------------------------------------------------
@@ -84,7 +84,7 @@ local function tween(obj, props, time, style, dir)
 end
 
 ------------------------------------------------------------
--- MAIN WINDOW (rounded)
+-- MAIN WINDOW
 ------------------------------------------------------------
 
 local window = Instance.new("Frame")
