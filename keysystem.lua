@@ -1,6 +1,30 @@
 -- Synium Key System (clean, rounded, closes, loads hub)
 -- Fully compatible with main.lua protection
 
+
+------------------------------------------------------------
+-- CONFIG SAVE / LOAD
+------------------------------------------------------------
+
+local function saveConfig(mode, key)
+    pcall(function()
+        writefile("synium_key.cfg", game:GetService("HttpService"):JSONEncode({
+            mode = mode,
+            key = key
+        }))
+    end)
+end
+
+local function loadConfig()
+    if not isfile("synium_key.cfg") then return nil end
+    local ok, data = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(readfile("synium_key.cfg"))
+    end)
+    return ok and data or nil
+end
+
+
+
 ------------------------------------------------------------
 -- CONFIG
 ------------------------------------------------------------
