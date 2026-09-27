@@ -324,10 +324,19 @@ local function loadHub(mode)
 
     -- Load correct hub depending on mode
     local url
-    if mode == "premium" then
-        url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"
-    elseif mode == "lite" then
-        url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/mainlite.lua"
+    elseif normalized == PREMIUM_KEY then
+    setStatus("Premium key accepted.", Color3.fromRGB(120,220,140))
+    flash(Color3.fromRGB(120,220,140))
+
+    saveConfig("premium", normalized)
+    loadHub("premium")
+    elseif normalized == LITE_KEY then
+    setStatus("Lite key accepted.", Color3.fromRGB(120,220,140))
+    flash(Color3.fromRGB(120,220,140))
+
+    saveConfig("lite", normalized)
+    loadHub("lite")
+
     else
         warn("Unknown mode: " .. tostring(mode))
         return
@@ -409,6 +418,24 @@ button.MouseLeave:Connect(function()
     tween(button, {BackgroundColor3 = Color3.fromRGB(60,120,255)}, 0.12)
     tween(buttonStroke, {Transparency = 0.95}, 0.12)
 end)
+
+------------------------------------------------------------
+-- AUTO-UNLOCK IF CONFIG MATCHES CURRENT KEYS
+------------------------------------------------------------
+
+local cfg = loadConfig()
+if cfg and cfg.key then
+    local normalized = cfg.key:lower():gsub("%s+", "")
+
+    if normalized == PREMIUM_KEY then
+        loadHub("premium")
+        return
+    elseif normalized == LITE_KEY then
+        loadHub("lite")
+        return
+    end
+end
+
 
 ------------------------------------------------------------
 -- ENTRANCE ANIMATION
