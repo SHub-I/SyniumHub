@@ -22,7 +22,8 @@ local Config = {
     MASS = 16,
     AIR_FRICTION = 0.4,
     FRICTION = 6,
-    GRAVITY = 80,
+    -- Use Roblox workspace gravity so the engine's gravity is authoritative
+    GRAVITY = workspace.Gravity,
     JUMP_VELOCITY = 26,
 
     GROUND_ACCEL = 14,
@@ -391,15 +392,12 @@ task.spawn(function()
     end
 end)
 
--- Modified grounded: start ray slightly above root to avoid missing surface when root is slightly penetrating
 local function grounded()
     local rayParams = RaycastParams.new()
     rayParams.FilterDescendantsInstances = {character}
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- start the ray a bit above the root to avoid being inside geometry
-    local rayStart = root.Position + Vector3.new(0, 0.2, 0)
-    local result = workspace:Raycast(rayStart, Vector3.new(0, -4.0, 0), rayParams)
+    local result = workspace:Raycast(root.Position, Vector3.new(0, -3.8, 0), rayParams)
     if result and result.Instance then
         return result.Instance.CanCollide, result
     end
@@ -630,7 +628,7 @@ local function process(dt)
             end
         end
 
-        -- gravity
+        -- gravity: use Roblox workspace gravity (no script override)
         velocity = velocity + Vector3.new(0, -Config.GRAVITY * dt, 0)
     end
 
@@ -647,39 +645,6 @@ local function process(dt)
     if flatSpeed > maxGlobalSpeed then
         flat = flat.Unit * maxGlobalSpeed
         velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
-    end
-
-    -- stronger ground-penetration correction and immediate physics sync
-    if isGrounded and groundTrace and root and root:IsA("BasePart") then
-        -- authoritative ground Y from trace
-        local groundY = groundTrace.Position.Y
-        local desiredY = groundY + (Config.LEG_HEIGHT or 1.9)
-
-        -- penetration: positive means root is below desiredY
-        local penetration = desiredY - root.Position.Y
-
-        -- thresholds
-        local minCorrection = 0.01    -- ignore tiny noise
-        local maxCorrection = 0.35    -- conservative per-frame max
-        local largePenetration = 1.0  -- if bigger than this, treat as big overlap
-
-        if penetration > minCorrection then
-            if penetration > largePenetration then
-                -- large overlap: gently nudge up by maxCorrection to avoid teleporting
-                local correction = math.min(penetration, maxCorrection)
-                local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
-                root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
-                velocity = Vector3.new(velocity.X, 0, velocity.Z)
-                root.AssemblyLinearVelocity = velocity
-            else
-                -- small/medium overlap: fully correct but clamp to maxCorrection to be safe
-                local correction = math.min(penetration, maxCorrection)
-                local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
-                root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
-                velocity = Vector3.new(velocity.X, 0, velocity.Z)
-                root.AssemblyLinearVelocity = velocity
-            end
-        end
     end
 
     -- apply to root
