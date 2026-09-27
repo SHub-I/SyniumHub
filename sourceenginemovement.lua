@@ -200,305 +200,180 @@ end
 
 local currentModeIndex = 1
 
--- GUI (improved, draggable, smoothing, buttons fully inside)
 local function createGui()
     local g = Instance.new("ScreenGui")
     g.ResetOnSpawn = false
     g.Name = "SourceDBG"
     g.Parent = gui
 
-    -- container
-    local container = Instance.new("Frame")
-    container.Name = "DBGContainer"
-    container.Size = UDim2.new(0, 260, 0, 180)
-    container.Position = UDim2.new(0, 12, 1, -200)
-    container.AnchorPoint = Vector2.new(0, 0)
-    container.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-    container.BorderSizePixel = 0
-    container.Parent = g
+    -- main panel
+    local panel = Instance.new("Frame")
+    panel.Name = "DBGPanel"
+    panel.Size = UDim2.new(0, 260, 0, 160)
+    panel.Position = UDim2.new(0, 20, 1, -200)
+    panel.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+    panel.BorderSizePixel = 0
+    panel.Parent = g
 
-    local containerCorner = Instance.new("UICorner", container)
-    containerCorner.CornerRadius = UDim.new(0, 8)
-    local containerStroke = Instance.new("UIStroke", container)
-    containerStroke.Color = Color3.fromRGB(18, 18, 18)
-    containerStroke.Thickness = 1
+    local corner = Instance.new("UICorner", panel)
+    corner.CornerRadius = UDim.new(0, 4)
 
-    -- header (drag handle)
+    local stroke = Instance.new("UIStroke", panel)
+    stroke.Color = Color3.fromRGB(60, 60, 60)
+    stroke.Thickness = 1
+
+    -- header
     local header = Instance.new("Frame")
-    header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 36)
-    header.Position = UDim2.new(0, 0, 0, 0)
-    header.BackgroundTransparency = 1
-    header.Parent = container
+    header.Size = UDim2.new(1, 0, 0, 28)
+    header.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    header.BorderSizePixel = 0
+    header.Parent = panel
+
+    local headerCorner = Instance.new("UICorner", header)
+    headerCorner.CornerRadius = UDim.new(0, 4)
 
     local title = Instance.new("TextLabel", header)
-    title.Size = UDim2.new(1, -12, 1, 0)
-    title.Position = UDim2.new(0, 8, 0, 0)
+    title.Size = UDim2.new(1, -10, 1, 0)
+    title.Position = UDim2.new(0, 5, 0, 0)
     title.BackgroundTransparency = 1
     title.Text = "SourceDBG"
-    title.TextColor3 = Color3.fromRGB(230, 230, 230)
+    title.TextColor3 = Color3.fromRGB(220, 220, 220)
     title.Font = Enum.Font.GothamBold
     title.TextSize = 14
     title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- vertical layout and padding for container content
-    local padding = Instance.new("UIPadding", container)
-    padding.PaddingTop = UDim.new(0, 44)
-    padding.PaddingLeft = UDim.new(0, 8)
-    padding.PaddingRight = UDim.new(0, 8)
-    padding.PaddingBottom = UDim.new(0, 8)
+    -- content area
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, -10, 1, -38)
+    content.Position = UDim2.new(0, 5, 0, 33)
+    content.BackgroundTransparency = 1
+    content.Parent = panel
 
-    local vLayout = Instance.new("UIListLayout", container)
-    vLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    vLayout.Padding = UDim.new(0, 8)
-    vLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    vLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    local layout = Instance.new("UIListLayout", content)
+    layout.Padding = UDim.new(0, 6)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
 
-    -- helper to create buttons
-    local function makeButton(text, size, bg)
+    -- helper
+    local function makeBtn(text, color)
         local b = Instance.new("TextButton")
-        b.Size = size
-        b.BackgroundColor3 = bg
+        b.Size = UDim2.new(1, 0, 0, 28)
+        b.BackgroundColor3 = color
         b.Text = text
-        b.TextColor3 = Color3.fromRGB(240,240,240)
+        b.TextColor3 = Color3.fromRGB(230, 230, 230)
         b.Font = Enum.Font.GothamSemibold
-        b.TextSize = 14
+        b.TextSize = 13
         b.AutoButtonColor = true
 
-        local corner = Instance.new("UICorner", b)
-        corner.CornerRadius = UDim.new(0, 6)
-        local stroke = Instance.new("UIStroke", b)
-        stroke.Color = Color3.fromRGB(12,12,12)
-        stroke.Thickness = 1
+        local bc = Instance.new("UICorner", b)
+        bc.CornerRadius = UDim.new(0, 3)
+
+        local bs = Instance.new("UIStroke", b)
+        bs.Color = Color3.fromRGB(40, 40, 40)
+        bs.Thickness = 1
+
         return b
     end
 
-    -- top row (destroy + toggle)
-    local topRow = Instance.new("Frame", container)
-    topRow.Size = UDim2.new(1, 0, 0, 36)
-    topRow.BackgroundTransparency = 1
-    topRow.LayoutOrder = 1
+    -- destroy
+    local destroy = makeBtn("DESTROY", Color3.fromRGB(150, 40, 40))
+    destroy.Parent = content
 
-    local topLayout = Instance.new("UIListLayout", topRow)
-    topLayout.FillDirection = Enum.FillDirection.Horizontal
-    topLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    topLayout.Padding = UDim.new(0, 8)
-
-    local destroy = makeButton("DESTROY", UDim2.new(0, 140, 1, 0), Color3.fromRGB(220, 60, 60))
-    destroy.Parent = topRow
-
-    local toggle = makeButton("ON", UDim2.new(0, 96, 1, 0), Color3.fromRGB(60, 200, 110))
-    toggle.Parent = topRow
-
-    -- mode row (full width)
-    local modeRow = Instance.new("Frame", container)
-    modeRow.Size = UDim2.new(1, 0, 0, 36)
-    modeRow.BackgroundTransparency = 1
-    modeRow.LayoutOrder = 2
-
-    local modeButton = makeButton("Mode: " .. gameModes[currentModeIndex], UDim2.new(1, 0, 1, 0), Color3.fromRGB(90, 130, 230))
-    modeButton.Parent = modeRow
-    modeButton.TextSize = 13
-
-    -- mobile row (two large buttons) - only visible on mobile
-    local mobileRow = Instance.new("Frame", container)
-    mobileRow.Size = UDim2.new(1, 0, 0, 96)
-    mobileRow.BackgroundTransparency = 1
-    mobileRow.LayoutOrder = 3
-
-    local mobileLayout = Instance.new("UIListLayout", mobileRow)
-    mobileLayout.FillDirection = Enum.FillDirection.Horizontal
-    mobileLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-    mobileLayout.Padding = UDim.new(0, 8)
-
-    local grenadeButton, jumpButton
-    if isMobile then
-        grenadeButton = makeButton("GRENADE", UDim2.new(0, 90, 0, 90), Color3.fromRGB(40, 40, 40))
-        grenadeButton.Parent = mobileRow
-
-        jumpButton = makeButton("JUMP", UDim2.new(0, 90, 0, 90), Color3.fromRGB(40, 40, 40))
-        jumpButton.Parent = mobileRow
-    end
-
-    -- wire up behaviors (same logic as before)
     destroy.MouseButton1Click:Connect(function()
         humanoid.WalkSpeed = 16
         humanoid.JumpPower = 50
+
         for _, c in pairs(getconnections(RunService.Heartbeat)) do
-            if c.Function then pcall(function() c:Disconnect() end) end
+            pcall(function() c:Disconnect() end)
         end
+
         g:Destroy()
         scriptEnabled = false
-        if script and type(script.Destroy) == "function" then pcall(function() script:Destroy() end) end
+        pcall(function() script:Destroy() end)
     end)
+
+    -- toggle
+    local toggle = makeBtn("ON", Color3.fromRGB(40, 120, 40))
+    toggle.Parent = content
 
     toggle.MouseButton1Click:Connect(function()
         scriptEnabled = not scriptEnabled
         if scriptEnabled then
-            toggle.BackgroundColor3 = Color3.fromRGB(60, 200, 110)
             toggle.Text = "ON"
-            if isMobile and jumpButton then jumpButton.Visible = true end
+            toggle.BackgroundColor3 = Color3.fromRGB(40, 120, 40)
         else
-            toggle.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
             toggle.Text = "OFF"
+            toggle.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
             humanoid.WalkSpeed = 16
             humanoid.JumpPower = 50
             velocity = Vector3.new()
-            if isMobile and jumpButton then jumpButton.Visible = false end
-            for _, sound in pairs(root:GetChildren()) do if sound:IsA("Sound") then sound.Volume = 0.5 end end
-            for _, sound in pairs(humanoid:GetChildren()) do if sound:IsA("Sound") then sound.Volume = 0.5 end end
         end
     end)
 
-    modeButton.MouseButton1Click:Connect(function()
-        currentModeIndex = currentModeIndex + 1
+    -- mode
+    local modeBtn = makeBtn("Mode: " .. gameModes[currentModeIndex], Color3.fromRGB(40, 70, 140))
+    modeBtn.Parent = content
+
+    modeBtn.MouseButton1Click:Connect(function()
+        currentModeIndex += 1
         if currentModeIndex > #gameModes then currentModeIndex = 1 end
-        modeButton.Text = "Mode: " .. gameModes[currentModeIndex]
+        modeBtn.Text = "Mode: " .. gameModes[currentModeIndex]
     end)
 
-    if isMobile and grenadeButton and jumpButton then
-        grenadeButton.MouseButton1Click:Connect(function()
-            local currentMode = gameModes[currentModeIndex]
-            if currentMode == "no grenades (mobile)" or currentMode == "hard (mobile)" then return end
-            if not scriptEnabled then return end
-            local cam = workspace.CurrentCamera
-            local direction = cam.CFrame.LookVector
-            local startPos = root.Position + direction * 3
-            local rocket = Instance.new("Part")
-            rocket.Name = "Rocket"
-            rocket.Size = Vector3.new(0.5, 0.5, 2)
-            rocket.BrickColor = BrickColor.new("Really red")
-            rocket.Material = Enum.Material.Neon
-            rocket.Anchored = false
-            rocket.CanCollide = false
-            rocket.CFrame = CFrame.lookAt(startPos, startPos + direction)
-            rocket.Parent = workspace
-            local attachment0 = Instance.new("Attachment", rocket)
-            attachment0.Position = Vector3.new(0, 0, -1)
-            local attachment1 = Instance.new("Attachment", rocket)
-            local trail = Instance.new("Trail", rocket)
-            trail.Attachment0 = attachment0
-            trail.Attachment1 = attachment1
-            trail.Color = ColorSequence.new(Color3.fromRGB(255, 165, 0))
-            trail.Transparency = NumberSequence.new{
-                NumberSequenceKeypoint.new(0, 0.3),
-                NumberSequenceKeypoint.new(1, 1)
-            }
-            trail.Lifetime = 0.3
-            trail.MinLength = 0
-            rocket.AssemblyLinearVelocity = direction * 150
-            local explodeSound = Instance.new("Sound")
-            explodeSound.SoundId = "rbxassetid://90586353104830"
-            explodeSound.Volume = 1.0
-            explodeSound.PlaybackSpeed = 1
-            local shootSound = Instance.new("Sound", root)
-            shootSound.SoundId = "rbxassetid://2156366946"
-            shootSound.Volume = 1.0
-            shootSound.PlaybackSpeed = 1.0
-            shootSound:Play()
-            game.Debris:AddItem(shootSound, 2)
-            local connection
-            connection = rocket.Touched:Connect(function(hit)
-                if hit and not hit:IsDescendantOf(character) then
-                    local explosionPos = rocket.Position
-                    local dist = (root.Position - explosionPos).Magnitude
-                    local shouldPush = dist <= rocketBlastRadius
-                    explodeSound.Parent = workspace
-                    explodeSound:Play()
-                    game.Debris:AddItem(explodeSound, 2)
-                    local explosion = Instance.new("Explosion")
-                    explosion.Position = explosionPos
-                    explosion.BlastPressure = 0
-                    explosion.BlastRadius = rocketBlastRadius
-                    explosion.Parent = workspace
-                    if shouldPush then
-                        local dir = (root.Position - explosionPos).Unit
-                        local forceMagnitude = 80
-                        velocity = velocity + dir * forceMagnitude
-                    end
-                    rocket:Destroy()
-                    connection:Disconnect()
-                end
-            end)
-            game.Debris:AddItem(rocket, 5)
-        end)
-
-        jumpButton.MouseButton1Down:Connect(function() spaceHeld = true end)
-        jumpButton.MouseButton1Up:Connect(function() spaceHeld = false end)
-    end
-
-    -- Draggable with smoothing
+    -- draggable with smoothing
     do
         local dragging = false
-        local dragInput = nil
-        local dragStart = nil
-        local startPos = nil
+        local dragStart, startPos
+        local target = panel.Position
         local smoothing = 0.18
-        local targetPosition = container.Position
-        local renderConn
+        local conn
 
-        local function updateTarget(inputPos)
-            if not startPos or not dragStart then return end
-            local delta = inputPos - dragStart
-            local newX = startPos.X.Offset + delta.X
-            local newY = startPos.Y.Offset + delta.Y
-            targetPosition = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
+        local function update(pos)
+            local delta = pos - dragStart
+            target = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                               startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
 
-        local function beginDrag(input)
+        local function begin(input)
             dragging = true
             dragStart = input.Position
-            startPos = container.Position
-            dragInput = input
-            if renderConn then renderConn:Disconnect() end
-            renderConn = RunService.RenderStepped:Connect(function()
-                if dragInput and dragging then updateTarget(dragInput.Position) end
-                container.Position = container.Position:Lerp(targetPosition, smoothing)
+            startPos = panel.Position
+
+            if conn then conn:Disconnect() end
+            conn = RunService.RenderStepped:Connect(function()
+                if dragging then update(dragInput.Position) end
+                panel.Position = panel.Position:Lerp(target, smoothing)
             end)
         end
 
-        local function endDrag()
+        local function finish()
             dragging = false
-            dragInput = nil
-            dragStart = nil
-            startPos = nil
-            if renderConn then renderConn:Disconnect() renderConn = nil end
-            pcall(function()
-                local tweenInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                TweenService:Create(container, tweenInfo, {Position = targetPosition}):Play()
-            end)
+            if conn then conn:Disconnect() end
+            TweenService:Create(panel, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {Position = target}):Play()
         end
 
-        header.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                beginDrag(input)
+        header.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragInput = i
+                begin(i)
             end
         end)
 
-        container.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                if input.Target and input.Target:IsA("TextButton") then return end
-                beginDrag(input)
+        UserInputService.InputChanged:Connect(function(i)
+            if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+                dragInput = i
             end
         end)
 
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                dragInput = input
+        UserInputService.InputEnded:Connect(function(i)
+            if dragging and i.UserInputType == Enum.UserInputType.MouseButton1 then
+                finish()
             end
-        end)
-
-        UserInputService.InputEnded:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-                endDrag()
-            end
-        end)
-
-        container.AncestryChanged:Connect(function()
-            if not container:IsDescendantOf(game) then if renderConn then renderConn:Disconnect() end end
         end)
     end
 end
+
 
 createGui()
 
