@@ -1,5 +1,5 @@
--- Full movement script (HL1/HL2 midground + Portal2 slide + Quake air + Source surf features)
--- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
+-- Full movement script (HL1/HL2 midground + Portal2 slide + Quake air features)
+-- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, crouch, sprint.
 -- GUI updated: improved layout, draggable with smoothing, buttons fully inside container
 
 local Players = game:GetService("Players")
@@ -22,7 +22,6 @@ local Config = {
     MASS = 16,
     AIR_FRICTION = 0.4,
     FRICTION = 6,
-    -- Use Roblox workspace gravity so the engine's gravity is authoritative
     GRAVITY = workspace.Gravity,
     JUMP_VELOCITY = 26,
 
@@ -46,12 +45,6 @@ local Config = {
     FEET_HB_SIZE = Vector3.new(1, 0.1, 1),
     TORSO_HB_SIZE = Vector3.new(3, 1, 3),
     FOOT_OFFSET_AMOUNT = 1.2,
-
-    SLIDE_FRICTION = 1.2,
-    SLIDE_BOOST = 1.12,
-    SLIDE_MIN_SPEED = 8,
-    SLIDE_DURATION = 0.9,
-    SURF_INFLUENCE = 0.6,
 }
 
 local scriptEnabled = true
@@ -68,11 +61,8 @@ local footstepTimer = 0
 local footstepInterval = 0.35
 local lastFootstepIndex = 0
 
-local sliding = false
-local slideTimer = 0
 local states = {
     air_friction = 0,
-    surfing = false,
 }
 
 local rocketBlastRadius = 25
@@ -411,9 +401,6 @@ local function ApplyFriction(dt, inAir, modifier)
     if speed <= 0 then return end
 
     local fric = inAir and Config.AIR_FRICTION or Config.FRICTION
-    if states.surfing and not inAir then
-        fric = Config.SLIDE_FRICTION or (Config.FRICTION * 0.5)
-    end
 
     local control = speed < Config.GROUND_DECCEL and Config.GROUND_DECCEL or speed
     local drop = control * fric * dt * modifier
@@ -440,7 +427,7 @@ local function Accelerate(wishDir, wishSpeed, accel, dt, maxSpeed)
     local accelSpeed = math.min(accel * dt * wishSpeed, addSpeed)
     local newFlat = flat + wishDir * accelSpeed
 
-    if maxSpeed and maxSpeed > 0 and newFlat.Magnitude > maxSpeed and not states.surfing then
+    if maxSpeed and maxSpeed > 0 and newFlat.Magnitude > maxSpeed then
         newFlat = newFlat.Unit * maxSpeed
     end
 
@@ -459,48 +446,11 @@ local function AirControl(wishDir, dt)
     if dot <= 0 then return end
 
     local k = Config.AIR_SPEED * dot * dt * (Config.AIR_ACCEL / 1000)
-    k = k * (Config.SURF_INFLUENCE or 0.6)
     local newDir = (velUnit + wish * k)
     if newDir.Magnitude == 0 then return end
     newDir = newDir.Unit
     local newFlat = newDir * speed
     velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
-end
-
-local function UpdateSurfState(groundNormal, trace)
-    local flat = Vector3.new(velocity.X, 0, velocity.Z)
-    local speed = flat.Magnitude
-    local minAngle = Config.MIN_SLOPE_ANGLE or 40
-    local maxAngle = Config.MAX_SLOPE_ANGLE or 75
-
-    local wasSurfing = states.surfing
-    states.surfing = false
-
-    if groundNormal and speed > Config.AIR_SPEED and trace then
-        local angle = math.deg(math.acos(math.clamp(groundNormal:Dot(Vector3.new(0,1,0)), -1, 1)))
-        if angle >= minAngle and angle <= maxAngle then
-            local slopeTangent = Vector3.new(groundNormal.Z, 0, -groundNormal.X)
-            if slopeTangent.Magnitude > 0 then
-                slopeTangent = slopeTangent.Unit
-                local moveUnit = (flat.Magnitude > 0) and flat.Unit or Vector3.new(0,0,0)
-                local dot = math.abs(moveUnit:Dot(slopeTangent))
-                if dot > 0.3 then
-                    states.surfing = true
-                end
-            end
-        end
-    end
-
-    if states.surfing and not wasSurfing then
-        local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
-        local slopeTangent = Vector3.new(groundNormal.Z, 0, -groundNormal.X)
-        if slopeTangent.Magnitude > 0 then
-            slopeTangent = slopeTangent.Unit
-            local boost = flatVel + slopeTangent * (flatVel.Magnitude * 0.08)
-            velocity = Vector3.new(boost.X, velocity.Y, boost.Z)
-        end
-        states.air_friction = 0
-    end
 end
 
 local function process(dt)
@@ -546,22 +496,6 @@ local function process(dt)
     if input.Magnitude > 0 then input = input.Unit end
     moveDir = input
 
-    -- sliding detection
-    if crouchHeld and isGrounded and Vector3.new(velocity.X,0,velocity.Z).Magnitude >= Config.SLIDE_MIN_SPEED and moveDir.Magnitude > 0 then
-        if not sliding then
-            sliding = true
-            slideTimer = 0
-            local flat = Vector3.new(velocity.X, 0, velocity.Z)
-            flat = flat * Config.SLIDE_BOOST
-            velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
-        end
-    end
-    if sliding and (not crouchHeld or not isGrounded) then
-        sliding = false
-        slideTimer = 0
-    end
-    if sliding then slideTimer = slideTimer + dt end
-
     -- mode adjustments
     local speedMult = sprintHeld and 1.15 or 1
     local currentMaxAirSpeed = Config.AIR_MAX_SPEED
@@ -571,16 +505,15 @@ local function process(dt)
 
     -- movement branches
     if isGrounded then
-        -- friction & surf update
-        ApplyFriction(dt, false, sliding and 0.9 or 1)
-        UpdateSurfState(groundTrace and groundTrace.Normal or nil, groundTrace)
+        -- friction update
+        ApplyFriction(dt, false, 1)
 
         local wishDir = moveDir
         local wishSpeed = Config.RUN_SPEED * speedMult * (moveDir.Magnitude > 0 and 1 or 0)
-        local groundAccel = sliding and (Config.GROUND_ACCEL * 0.6) or Config.GROUND_ACCEL
+        local groundAccel = Config.GROUND_ACCEL
         Accelerate(wishDir, wishSpeed, groundAccel, dt, nil)
 
-        if moveDir.Magnitude > 0.1 and not sliding then
+        if moveDir.Magnitude > 0.1 then
             footstepTimer = footstepTimer + dt
             if footstepTimer >= footstepInterval then
                 playFootstep()
@@ -594,8 +527,6 @@ local function process(dt)
             velocity = Vector3.new(velocity.X, Config.JUMP_VELOCITY, velocity.Z)
             playJump()
             isGrounded = false
-            sliding = false
-            slideTimer = 0
         else
             velocity = Vector3.new(velocity.X, 0, velocity.Z)
         end
@@ -607,7 +538,7 @@ local function process(dt)
             states.air_friction = Config.AIR_MAX_SPEED_FRIC
         end
 
-        if states.air_friction > 0 and not states.surfing then
+        if states.air_friction > 0 then
             ApplyFriction(dt, true, 0.01 * states.air_friction)
         end
 
@@ -617,18 +548,7 @@ local function process(dt)
         Accelerate(wishDir, wishSpeed, Config.AIR_ACCEL, dt, currentMaxAirSpeed)
         AirControl(wishDir, dt)
 
-        -- surf influence if near slope
-        if groundTrace then
-            local normal = groundTrace.Normal
-            local flatVel = Vector3.new(velocity.X, 0, velocity.Z)
-            local along = flatVel - normal * flatVel:Dot(normal)
-            if along.Magnitude > 0 then
-                local newFlat = along.Unit * flatVel.Magnitude
-                velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
-            end
-        end
-
-        -- gravity: use Roblox workspace gravity (no script override)
+        -- gravity: use Roblox workspace gravity
         velocity = velocity + Vector3.new(0, -Config.GRAVITY * dt, 0)
     end
 
@@ -760,10 +680,7 @@ player.CharacterAdded:Connect(function(char)
     humanoid = char:WaitForChild("Humanoid")
     root = char:WaitForChild("HumanoidRootPart")
     velocity = Vector3.new()
-    sliding = false
-    slideTimer = 0
     states.air_friction = 0
-    states.surfing = false
 end)
 
-print("Movement script loaded: HL1/HL2 midground + Portal2 slide + Quake air + Source surf features (GUI improved, draggable)")
+print("Movement script loaded: HL1/HL2 midground + Portal2 slide + Quake air features (surfing and sliding removed, GUI improved, draggable)")
