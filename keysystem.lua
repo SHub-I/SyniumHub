@@ -1,7 +1,6 @@
 -- Synium Key System (clean, rounded, closes, loads hub)
 -- Fully compatible with main.lua protection
 
-
 ------------------------------------------------------------
 -- CONFIG SAVE / LOAD
 ------------------------------------------------------------
@@ -22,8 +21,6 @@ local function loadConfig()
     end)
     return ok and data or nil
 end
-
-
 
 ------------------------------------------------------------
 -- CONFIG
@@ -93,7 +90,7 @@ end
 local window = Instance.new("Frame")
 
 ------------------------------------------------------------
--- ULTRA-SMOOTH DRAGGING (no overshoot, no pauses)
+-- ULTRA-SMOOTH DRAGGING
 ------------------------------------------------------------
 
 local dragging = false
@@ -101,10 +98,7 @@ local dragStart
 local startPos
 
 local RunService = game:GetService("RunService")
-
--- how fast the window follows the mouse (0.1 = slow, 0.25 = fast)
 local followSpeed = 0.08
-
 local targetPos = window.Position
 
 window.InputBegan:Connect(function(input)
@@ -134,7 +128,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ultra-smooth interpolation every frame
 RunService.RenderStepped:Connect(function()
     window.Position = UDim2.new(
         window.Position.X.Scale,
@@ -143,7 +136,6 @@ RunService.RenderStepped:Connect(function()
         window.Position.Y.Offset + (targetPos.Y.Offset - window.Position.Y.Offset) * followSpeed
     )
 end)
-
 
 window.Name = "Window"
 window.Size = UDim2.new(0, 520, 0, 260)
@@ -238,9 +230,8 @@ status.TextXAlignment = Enum.TextXAlignment.Left
 status.ZIndex = 10
 status.Parent = inputContainer
 
-
 local divider = Instance.new("Frame")
-divider.Size = UDim2.new(1, 0, 0, 4) -- thicker
+divider.Size = UDim2.new(1, 0, 0, 4)
 divider.Position = UDim2.new(0, 0, 0, 70)
 divider.BackgroundColor3 = Color3.fromRGB(115, 115, 115)
 divider.BorderSizePixel = 0
@@ -248,11 +239,8 @@ divider.ZIndex = 10
 divider.Parent = inputContainer
 
 local dividerCorner = Instance.new("UICorner")
-dividerCorner.CornerRadius = UDim.new(0, 3) -- rounded edges
+dividerCorner.CornerRadius = UDim.new(0, 3)
 dividerCorner.Parent = divider
-
-
-
 
 ------------------------------------------------------------
 -- UNLOCK BUTTON
@@ -305,11 +293,9 @@ end
 ------------------------------------------------------------
 
 local function loadHub(mode)
-    -- REQUIRED BY main.lua protection
     getgenv().SyniumKeySystemLoaded = true
     getgenv().SyniumMode = mode
 
-    -- Fade out UI
     for _, obj in ipairs(safeDescendants(window)) do
         if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
             tween(obj, {TextTransparency = 1}, 0.25)
@@ -322,21 +308,11 @@ local function loadHub(mode)
     task.wait(0.3)
     gui:Destroy()
 
-    -- Load correct hub depending on mode
     local url
-    elseif normalized == PREMIUM_KEY then
-    setStatus("Premium key accepted.", Color3.fromRGB(120,220,140))
-    flash(Color3.fromRGB(120,220,140))
-
-    saveConfig("premium", normalized)
-    loadHub("premium")
-    elseif normalized == LITE_KEY then
-    setStatus("Lite key accepted.", Color3.fromRGB(120,220,140))
-    flash(Color3.fromRGB(120,220,140))
-
-    saveConfig("lite", normalized)
-    loadHub("lite")
-
+    if mode == "premium" then
+        url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/main.lua"
+    elseif mode == "lite" then
+        url = "https://raw.githubusercontent.com/SHub-I/SyniumHub/main/mainlite.lua"
     else
         warn("Unknown mode: " .. tostring(mode))
         return
@@ -369,11 +345,15 @@ local function validate(key)
     if normalized == PREMIUM_KEY then
         setStatus("Premium key accepted.", Color3.fromRGB(120,220,140))
         flash(Color3.fromRGB(120,220,140))
+
+        saveConfig("premium", normalized)
         loadHub("premium")
 
     elseif normalized == LITE_KEY then
         setStatus("Lite key accepted.", Color3.fromRGB(120,220,140))
         flash(Color3.fromRGB(120,220,140))
+
+        saveConfig("lite", normalized)
         loadHub("lite")
 
     else
@@ -435,7 +415,6 @@ if cfg and cfg.key then
         return
     end
 end
-
 
 ------------------------------------------------------------
 -- ENTRANCE ANIMATION
