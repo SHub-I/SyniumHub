@@ -2,6 +2,10 @@
 -- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
 -- GUI updated: improved layout, draggable with smoothing, buttons fully inside container
 
+-- From the uploaded file:
+-- Full movement script (HL1/HL2 midground + Portal2 slide + Quake air + Source surf features)
+-- Integrates Config-style constants, air_friction, AIR_MAX_SPEED_FRIC decay, surfing, sliding, crouch, sprint.
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -646,17 +650,29 @@ local function process(dt)
         velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
     end
 
-    -- small ground-penetration correction to prevent sinking
+    -- improved ground-penetration correction (safer, smaller threshold, sync physics)
     if isGrounded and groundTrace and root and root:IsA("BasePart") then
+        -- Use the trace position for a reliable ground Y
         local groundY = groundTrace.Position.Y
-        local desiredY = groundY + (Config.LEG_HEIGHT or 1.9) -- keep using Config.LEG_HEIGHT
+        local desiredY = groundY + (Config.LEG_HEIGHT or 1.9)
+        -- compute how far root is below desired surface
         local penetration = desiredY - root.Position.Y
-        -- only correct small penetrations to avoid teleporting the player
-        if penetration > 0 and penetration < 1.0 then
-            -- lift the root up to sit on the ground surface
-            root.CFrame = CFrame.new(root.Position + Vector3.new(0, penetration, 0), root.Position + root.CFrame.LookVector)
-            -- ensure vertical velocity is zero so physics doesn't push back down
+
+        -- thresholds tuned to correct small penetrations without teleporting
+        local minCorrection = 0.02    -- ignore tiny floating point noise
+        local maxCorrection = 0.5     -- never move more than this in one frame
+        if penetration > minCorrection then
+            local correction = math.min(penetration, maxCorrection)
+
+            -- move only on the Y axis to avoid changing orientation
+            local newPos = Vector3.new(root.Position.X, root.Position.Y + correction, root.Position.Z)
+            root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
+
+            -- zero vertical velocity and immediately apply to AssemblyLinearVelocity so physics stays stable
             velocity = Vector3.new(velocity.X, 0, velocity.Z)
+            if root and root:IsA("BasePart") then
+                root.AssemblyLinearVelocity = velocity
+            end
         end
     end
 
