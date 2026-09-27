@@ -30,11 +30,11 @@ local Config = {
     AIR_ACCEL = 2200,
 
     AIR_SPEED = 6,
-    RUN_SPEED = 25,
-    WALK_SPEED = 25,
-    CROUCH_SPEED = 25,
+    RUN_SPEED = 20,
+    WALK_SPEED = 20,
+    CROUCH_SPEED = 20,
 
-    AIR_MAX_SPEED = 36.5,
+    AIR_MAX_SPEED = 80,
     AIR_MAX_SPEED_FRIC = 3,
     AIR_MAX_SPEED_FRIC_DEC = 0.5,
     MIN_SLOPE_ANGLE = 40,
@@ -210,7 +210,7 @@ local function createGui()
     -- container
     local container = Instance.new("Frame")
     container.Name = "DBGContainer"
-    container.Size = UDim2.new(0, 240, 0, 180)
+    container.Size = UDim2.new(0, 260, 0, 180)
     container.Position = UDim2.new(0, 12, 1, -200)
     container.AnchorPoint = Vector2.new(0, 0)
     container.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
