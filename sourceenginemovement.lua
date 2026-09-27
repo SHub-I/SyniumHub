@@ -1,4 +1,5 @@
 -- HL1/HL2 midground movement (NO surfing, NO sliding, uses Roblox humanoid height)
+-- Added anti-sinking measures: use root.Velocity, substepping, and sweep raycasts before applying movement.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -31,6 +32,10 @@ local Config = {
     AIR_MAX_SPEED = 80,
     AIR_MAX_SPEED_FRIC = 3,
     AIR_MAX_SPEED_FRIC_DEC = 0.5,
+
+    -- anti-tunneling
+    MAX_STEP_DISPLACEMENT = 1.0, -- studs per substep (reduce to avoid tunneling)
+    MAX_SUBSTEPS = 6,             -- max substeps per frame
 }
 
 local scriptEnabled = true
@@ -371,6 +376,7 @@ end)
 
 -- Grounded using humanoid state + raycast for material detection
 local function grounded()
+    -- Use humanoid's floor material as primary grounded indicator
     return humanoid.FloorMaterial ~= Enum.Material.Air
 end
 
@@ -428,9 +434,79 @@ local function AirControl(wishDir, dt)
     velocity = Vector3.new(newFlat.X, velocity.Y, newFlat.Z)
 end
 
+-- Sweep test helper: returns hit result if a raycast from start to end hits something (excluding character)
+local function sweepTest(startPos, endPos)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    return workspace:Raycast(startPos, endPos - startPos, rayParams)
+end
+
+-- Apply movement with substepping and sweep tests to avoid tunneling/sinking
+local function applyMovementWithSafety(dt)
+    -- compute intended displacement this frame
+    local intendedDisp = velocity * dt
+    local dispMag = intendedDisp.Magnitude
+
+    -- determine substeps based on max allowed displacement
+    local maxDisp = Config.MAX_STEP_DISPLACEMENT
+    local steps = 1
+    if dispMag > maxDisp and maxDisp > 0 then
+        steps = math.clamp(math.ceil(dispMag / maxDisp), 1, Config.MAX_SUBSTEPS)
+    end
+
+    -- perform substeps: for each substep, do a sweep test and adjust velocity if collision ahead
+    for i = 1, steps do
+        if not root or not root:IsA("BasePart") then break end
+
+        local stepVel = velocity / steps
+        local stepDisp = stepVel * dt
+
+        -- small safety raycast from current root position to next position
+        local from = root.Position
+        local to = from + stepDisp
+
+        local hit = sweepTest(from, to)
+        if hit and hit.Instance then
+            -- collision detected in this substep: zero horizontal components that would penetrate
+            -- project velocity onto hit normal and remove the component into the surface
+            local normal = hit.Normal or Vector3.new(0, 1, 0)
+            local velVec = Vector3.new(velocity.X, velocity.Y, velocity.Z)
+            -- remove component along normal
+            local into = normal * velVec:Dot(normal)
+            local corrected = velVec - into
+            -- keep vertical velocity if moving away from surface; if into surface on Y, zero Y
+            if velVec.Y < 0 and normal.Y > 0.5 then
+                corrected = Vector3.new(corrected.X, 0, corrected.Z)
+            end
+            velocity = corrected
+            -- after correction, stop further substeps to let physics resolve
+            break
+        else
+            -- no collision: we don't move root.Position manually; we rely on setting root.Velocity
+            -- continue to next substep
+        end
+    end
+
+    -- finally apply velocity using root.Velocity (plays nicer with Roblox solver)
+    if root and root:IsA("BasePart") then
+        -- clamp very large velocities to avoid huge per-frame displacement
+        local flat = Vector3.new(velocity.X, 0, velocity.Z)
+        local maxGlobalSpeed = 200
+        if flat.Magnitude > maxGlobalSpeed then
+            flat = flat.Unit * maxGlobalSpeed
+            velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
+        end
+
+        -- set velocity
+        root.Velocity = velocity
+    end
+end
+
 local function process(dt)
     if not scriptEnabled then return end
 
+    -- disable default humanoid movement so we can control movement via velocity
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
 
@@ -442,7 +518,7 @@ local function process(dt)
         footstepTimer = 0
     end
 
-    -- align yaw to camera
+    -- align yaw to camera (only orientation, not position)
     local camLook = workspace.CurrentCamera.CFrame.LookVector
     local flatCam = Vector3.new(camLook.X, 0, camLook.Z)
     if flatCam.Magnitude > 0.01 then
@@ -500,6 +576,7 @@ local function process(dt)
             playJump()
             isGrounded = false
         else
+            -- keep vertical velocity zero while grounded to avoid fighting the solver
             velocity = Vector3.new(velocity.X, 0, velocity.Z)
         end
     else
@@ -526,15 +603,8 @@ local function process(dt)
         states.air_friction = math.max(0, states.air_friction - sub)
     end
 
-    local flat = Vector3.new(velocity.X, 0, velocity.Z)
-    local flatSpeed = flat.Magnitude
-    local maxGlobalSpeed = 200
-    if flatSpeed > maxGlobalSpeed then
-        flat = flat.Unit * maxGlobalSpeed
-        velocity = Vector3.new(flat.X, velocity.Y, flat.Z)
-    end
-
-    root.AssemblyLinearVelocity = velocity
+    -- apply movement with safety checks to avoid tunneling/sinking
+    applyMovementWithSafety(dt)
 end
 
 -- input handlers
@@ -580,7 +650,7 @@ UserInputService.InputBegan:Connect(function(i, gp)
         trail.Lifetime = 0.3
         trail.MinLength = 0
 
-        rocket.AssemblyLinearVelocity = direction * 150
+        rocket.Velocity = direction * 150
 
         local explodeSound = Instance.new("Sound")
         explodeSound.SoundId = "rbxassetid://90586353104830"
@@ -639,7 +709,9 @@ end)
 
 RunService.Heartbeat:Connect(function(dt)
     if humanoid and humanoid.Health > 0 then
-        process(dt)
+        -- clamp dt to avoid huge physics steps (helps stability)
+        local safeDt = math.clamp(dt, 0, 1/30)
+        process(safeDt)
     end
 end)
 
@@ -651,4 +723,4 @@ player.CharacterAdded:Connect(function(char)
     states.air_friction = 0
 end)
 
-print("Movement script loaded: HL1/HL2 midground (surfing and sliding removed, using Roblox humanoid height)")
+print("Movement script loaded: HL1/HL2 midground (surfing and sliding removed, using Roblox humanoid height). Anti-sinking measures enabled.")
