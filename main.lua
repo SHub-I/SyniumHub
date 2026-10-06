@@ -106,6 +106,14 @@ universal:CreateButton({
 })
 
 universal:CreateButton({
+    name = "Speed & Jump Override",
+    callback = function()
+        window:Notify({ title = "Ran script", content = "S&JO" })
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/refs/heads/main/speedjumpoverride"))()
+    end,
+})
+
+universal:CreateButton({
     name = "YARHM",
     callback = function()
         window:Notify({ title = "Ran script", content = "YARHM" })
