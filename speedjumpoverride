@@ -1,0 +1,376 @@
+-- CONFIG
+local TARGET_WALKSPEED = 16
+local TARGET_JUMPPOWER = 50
+
+local lastDeathPosition = nil
+local isTeleporting = false
+local enabled = true -- default ON
+
+local player = game:GetService("Players").LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+----------------------------------------------------------------
+-- CHARACTER LOGIC (speed/jump + teleport on death)
+----------------------------------------------------------------
+
+local function onCharacterAdded(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    local rootPart = character:WaitForChild("HumanoidRootPart")
+
+    humanoid.UseJumpPower = true
+
+    if lastDeathPosition and isTeleporting then
+        task.wait(0.1)
+        rootPart.CFrame = CFrame.new(lastDeathPosition)
+        isTeleporting = false
+    end
+
+    humanoid.Died:Connect(function()
+        if rootPart then
+            lastDeathPosition = rootPart.Position
+            isTeleporting = true
+        end
+    end)
+
+    local connection1
+    local connection2
+
+    connection1 = RunService.Heartbeat:Connect(function()
+        if not character:IsDescendantOf(game) or humanoid.Health <= 0 then
+            connection1:Disconnect()
+            return
+        end
+
+        if enabled then
+            humanoid.WalkSpeed = TARGET_WALKSPEED
+            humanoid.JumpPower = TARGET_JUMPPOWER
+        end
+    end)
+
+    connection2 = RunService.PreSimulation:Connect(function()
+        if not character:IsDescendantOf(game) or humanoid.Health <= 0 then
+            connection2:Disconnect()
+            return
+        end
+
+        if enabled then
+            humanoid.WalkSpeed = TARGET_WALKSPEED
+            humanoid.JumpPower = TARGET_JUMPPOWER
+        end
+    end)
+end
+
+if player.Character then
+    task.spawn(onCharacterAdded, player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
+
+if player.Character and player.Character:FindFirstChild("Humanoid") then
+    player.Character.Humanoid.Health = 0
+end
+
+----------------------------------------------------------------
+-- PURPLE + AQUA GUI (TOGGLES `enabled`)
+----------------------------------------------------------------
+
+if game.CoreGui:FindFirstChild("SpeedJumpGUI") then
+    game.CoreGui.SpeedJumpGUI:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SpeedJumpGUI"
+gui.Parent = game.CoreGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 120) -- FIXED HEIGHT
+frame.Position = UDim2.new(0.5, -130, 0.5, -60)
+frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.ClipsDescendants = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 12)
+
+local stroke = Instance.new("UIStroke", frame)
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(80, 240, 255)
+stroke.Transparency = 0.25
+
+local orig = {
+    Position = frame.Position,
+    Size = frame.Size,
+    BgColor = frame.BackgroundColor3,
+    Corner = corner.CornerRadius,
+    GlowTransparency = stroke.Transparency
+}
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "Speed / Jump"
+title.TextColor3 = Color3.fromRGB(160, 120, 255)
+title.Font = Enum.Font.GothamSemibold
+title.TextSize = 20
+title.Parent = frame
+
+local toggleKey = Enum.KeyCode.F
+local bindingMode = false
+
+local keybindLabel = Instance.new("TextLabel")
+keybindLabel.Size = UDim2.new(0, 90, 0, 20)
+keybindLabel.Position = UDim2.new(1, -100, 0, 6)
+keybindLabel.BackgroundTransparency = 1
+keybindLabel.Text = toggleKey.Name
+keybindLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
+keybindLabel.Font = Enum.Font.Gotham
+keybindLabel.TextSize = 14
+keybindLabel.Parent = frame
+
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 40)
+toggle.BackgroundColor3 = Color3.fromRGB(60, 40, 120)
+toggle.TextColor3 = Color3.fromRGB(80, 240, 255)
+toggle.Font = Enum.Font.GothamBold
+toggle.TextSize = 18
+toggle.Text = "Override: ON"
+toggle.Parent = frame
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 10)
+
+local grad = Instance.new("UIGradient", toggle)
+grad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(160, 120, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 240, 255))
+}
+grad.Rotation = 90
+TweenService:Create(grad, TweenInfo.new(4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+    Rotation = 270
+}):Play()
+
+local closeBtn = Instance.new("ImageButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -36, 0, 6)
+closeBtn.BackgroundTransparency = 1
+closeBtn.BorderSizePixel = 0
+closeBtn.Image = ""
+closeBtn.Parent = frame
+
+task.defer(function()
+    if closeBtn and closeBtn.Parent then
+        closeBtn.Image = "rbxassetid://15396334032"
+        closeBtn.ImageColor3 = Color3.fromRGB(255,255,255)
+    end
+end)
+
+----------------------------------------------------------------
+-- DRAGGING
+----------------------------------------------------------------
+
+local draggingFrame = false
+local dragStart = Vector2.new()
+local startPos = UDim2.new()
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if frame:GetAttribute("Minimized") then return end
+        draggingFrame = true
+        dragStart = UserInputService:GetMouseLocation()
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                draggingFrame = false
+            end
+        end)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if draggingFrame then
+        local mousePos = UserInputService:GetMouseLocation()
+        local delta = mousePos - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+----------------------------------------------------------------
+-- TOGGLE LOGIC (RESET ON BOTH ON/OFF)
+----------------------------------------------------------------
+
+local function setToggle(on)
+    enabled = on
+    toggle.Text = on and "Override: ON" or "Override: OFF"
+
+    TweenService:Create(toggle, TweenInfo.new(0.22, Enum.EasingStyle.Sine), {
+        BackgroundColor3 = on and Color3.fromRGB(90, 60, 160) or Color3.fromRGB(60, 40, 120),
+        TextColor3 = on and Color3.fromRGB(80, 240, 255) or Color3.fromRGB(160, 120, 255)
+    }):Play()
+
+    -- Reset on BOTH ON and OFF
+    local char = player.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.Health = 0
+    end
+end
+
+toggle.MouseButton1Click:Connect(function()
+    setToggle(not enabled)
+end)
+
+-- Right-click keybind changer
+toggle.MouseButton2Click:Connect(function()
+    if bindingMode then return end
+    bindingMode = true
+    local oldText = toggle.Text
+    toggle.Text = "Press a key..."
+    keybindLabel.Text = "..."
+
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode ~= Enum.KeyCode.Unknown then
+            toggleKey = input.KeyCode
+            keybindLabel.Text = toggleKey.Name
+            toggle.Text = "Override: " .. toggleKey.Name
+            conn:Disconnect()
+            bindingMode = false
+        end
+    end)
+
+    task.delay(8, function()
+        if conn and conn.Connected then
+            conn:Disconnect()
+            bindingMode = false
+            toggle.Text = oldText
+            keybindLabel.Text = toggleKey.Name
+        end
+    end)
+end)
+
+-- Keybind toggle
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if bindingMode then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == toggleKey then
+        setToggle(not enabled)
+    end
+end)
+
+----------------------------------------------------------------
+-- MINIMIZE / RESTORE
+----------------------------------------------------------------
+
+local minimized = false
+local circleButton
+
+local function fadeChildren(toTransparency, time)
+    for _, child in ipairs(frame:GetChildren()) do
+        if child ~= corner and child ~= stroke then
+            if child:IsA("TextLabel") or child:IsA("TextButton") then
+                TweenService:Create(child, TweenInfo.new(time, Enum.EasingStyle.Quart), {
+                    TextTransparency = toTransparency
+                }):Play()
+            end
+            if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("ImageButton") or child:IsA("ImageLabel") then
+                TweenService:Create(child, TweenInfo.new(time, Enum.EasingStyle.Quart), {
+                    BackgroundTransparency = toTransparency
+                }):Play()
+            end
+        end
+    end
+end
+
+local function minimize()
+    if minimized then return end
+    minimized = true
+    frame:SetAttribute("Minimized", true)
+    frame.Active = false
+
+    corner.CornerRadius = UDim.new(0, 100)
+    fadeChildren(1, 0.6)
+
+    local targetSize = UDim2.new(0, 56, 0, 56)
+    local targetPos = UDim2.new(1, -72, 1, -72)
+    local info = TweenInfo.new(0.9, Enum.EasingStyle.Quart)
+
+    TweenService:Create(frame, info, {
+        Size = targetSize,
+        Position = targetPos,
+        BackgroundColor3 = Color3.fromRGB(10,10,10)
+    }):Play()
+
+    TweenService:Create(stroke, info, {Transparency = 0}):Play()
+
+    task.delay(0.92, function()
+        circleButton = Instance.new("ImageButton")
+        circleButton.Size = targetSize
+        circleButton.Position = targetPos
+        circleButton.BackgroundTransparency = 1
+        circleButton.Image = ""
+        circleButton.Parent = gui
+
+        local cCorner = Instance.new("UICorner", circleButton)
+        cCorner.CornerRadius = UDim.new(0, 100)
+
+        local cStroke = Instance.new("UIStroke", circleButton)
+        cStroke.Color = Color3.fromRGB(80, 240, 255)
+        cStroke.Thickness = 2
+
+        local icon = Instance.new("ImageLabel")
+        icon.Size = UDim2.new(0, 36, 0, 36)
+        icon.Position = UDim2.new(0.5, -18, 0.5, -18)
+        icon.BackgroundTransparency = 1
+        icon.Parent = circleButton
+
+        task.defer(function()
+            icon.Image = "rbxassetid://15396334032"
+            icon.ImageColor3 = Color3.fromRGB(255,255,255)
+        end)
+
+        local smallLabel = Instance.new("TextLabel", circleButton)
+        smallLabel.Size = UDim2.new(1, 0, 0.28, 0)
+        smallLabel.Position = UDim2.new(0, 0, 0.72, 0)
+        smallLabel.BackgroundTransparency = 1
+        smallLabel.Text = toggleKey.Name
+        smallLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
+        smallLabel.Font = Enum.Font.Gotham
+        smallLabel.TextSize = 12
+
+        local pulse = TweenService:Create(cStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+            Thickness = 3
+        })
+        pulse:Play()
+
+        circleButton.MouseButton1Click:Connect(function()
+            pulse:Cancel()
+            circleButton:Destroy()
+            circleButton = nil
+
+            local restore = TweenInfo.new(0.9, Enum.EasingStyle.Quart)
+            TweenService:Create(frame, restore, {
+                Size = orig.Size,
+                Position = orig.Position,
+                BackgroundColor3 = orig.BgColor
+            }):Play()
+
+            TweenService:Create(stroke, restore, {
+                Transparency = orig.GlowTransparency
+            }):Play()
+
+            corner.CornerRadius = orig.Corner
+            fadeChildren(0, 0.9)
+
+            task.delay(0.92, function()
+                frame.Active = true
+                frame:SetAttribute("Minimized", false)
+                minimized = false
+            end)
+        end)
+    end)
+end
+
+closeBtn.MouseButton1Click:Connect(minimize)
