@@ -106,9 +106,9 @@ universal:CreateButton({
 })
 
 universal:CreateButton({
-    name = "QuickFly",
+    name = "Quickfly",
     callback = function()
-        window:Notify({ title = "Ran script", content = "Quick Fly" })
+        window:Notify({ title = "Ran script", content = "QuickFly" })
         loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/refs/heads/main/quickfly.lua"))()
     end,
 })
