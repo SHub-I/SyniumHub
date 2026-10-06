@@ -106,6 +106,14 @@ universal:CreateButton({
 })
 
 universal:CreateButton({
+    name = "QuickFly",
+    callback = function()
+        window:Notify({ title = "Ran script", content = "Quick Fly" })
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/SHub-I/SyniumHub/refs/heads/main/quickfly.lua"))()
+    end,
+})
+
+universal:CreateButton({
     name = "Speed & Jump Override",
     callback = function()
         window:Notify({ title = "Ran script", content = "S&JO" })
